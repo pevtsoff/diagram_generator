@@ -52,7 +52,7 @@ class MockLLMClient:
             # Generate a diagram specification in JSON format
             try:
                 diagram_spec = await self.generate_diagram_specification(user_message, supported_node_types)
-                return json.dumps(diagram_spec.dict(), indent=2)
+                return json.dumps(diagram_spec.model_dump(), indent=2)
             except Exception as e:
                 self.logger.error(f"Failed to generate diagram specification: {e}")
                 return self._general_response(user_message)

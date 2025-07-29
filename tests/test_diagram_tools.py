@@ -1,6 +1,7 @@
 import pytest
 import tempfile
 import os
+from diagrams import Diagram
 from diagram_service.tools.diagram_tools import DiagramTools
 
 
@@ -38,17 +39,19 @@ class TestDiagramTools:
     
     def test_create_node_valid(self):
         """Test creating valid nodes."""
-        # Test AWS node
-        ec2_node = self.diagram_tools.create_node("ec2", "Web Server")
-        assert ec2_node is not None
-        
-        # Test GCP node
-        gcp_node = self.diagram_tools.create_node("compute_engine", "GCP Server")
-        assert gcp_node is not None
-        
-        # Test Azure node
-        azure_node = self.diagram_tools.create_node("virtual_machines", "Azure VM")
-        assert azure_node is not None
+        # Set up diagram context for testing
+        with Diagram("test", filename="test_diagram", show=False):
+            # Test AWS node
+            ec2_node = self.diagram_tools.create_node("ec2", "Web Server")
+            assert ec2_node is not None
+            
+            # Test GCP node
+            gcp_node = self.diagram_tools.create_node("compute_engine", "GCP Server")
+            assert gcp_node is not None
+            
+            # Test Azure node
+            azure_node = self.diagram_tools.create_node("virtual_machines", "Azure VM")
+            assert azure_node is not None
     
     def test_create_node_invalid(self):
         """Test creating invalid nodes."""

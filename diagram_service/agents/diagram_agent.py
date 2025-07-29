@@ -12,6 +12,7 @@ class DiagramAgent:
     
     def __init__(self, gemini_api_key: str, use_mock: bool = False):
         """Initialize the diagram agent with LLM client and tools."""
+        self.use_mock = use_mock
         if use_mock:
             from diagram_service.llm.mock_client import MockLLMClient
             self.llm_client: Union[GeminiClient, 'MockLLMClient'] = MockLLMClient()
@@ -110,7 +111,7 @@ class DiagramAgent:
                                 "type": "diagram",
                                 "diagram_path": image_path,
                                 "message": "Diagram generated successfully!",
-                                "specification": diagram_spec.dict(),
+                                "specification": diagram_spec.model_dump(),
                                 "response": response
                             }
                             
