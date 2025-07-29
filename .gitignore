@@ -12,4 +12,5 @@ wheels/
 .mypy_cache
 .vscode
 .chainlit
+.pytest_cache
 
