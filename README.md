@@ -1,12 +1,13 @@
 # AI Diagram Generation Service
 
-An async, stateless Python API service that creates cloud architecture diagrams using AI agents powered by Large Language Models (LLM). Users can describe diagram components in natural language and receive rendered diagram images.
+An async, stateless Python API service that creates cloud architecture diagrams using AI agents powered by Large Language Models (LLM). Users can describe diagram components in natural language and receive rendered diagram images. The service provides both a REST API and a web-based chat interface powered by Chainlit.
 
 ## Features
 
 - **Natural Language to Diagrams**: Convert text descriptions to cloud architecture diagrams
 - **Multi-Cloud Support**: AWS, GCP, and Azure components
 - **Assistant Interface**: Interactive chat for complex diagram creation workflows
+- **Web Chat Interface**: Chainlit-powered web UI for easy diagram creation
 - **Stateless Design**: No database or user sessions required
 - **Async Architecture**: Built with FastAPI for high performance
 - **Agent-Based**: Uses LLM-powered agents with custom tools
@@ -46,7 +47,27 @@ The service supports 17+ cloud component types:
 - Docker & Docker Compose (for containerized deployment)
 - Gemini API key (free at [Google AI Studio](https://makersuite.google.com/))
 
-### Local Development Setup
+### Option 1: Docker Compose (Recommended)
+
+1. **Setup Environment**
+   ```bash
+   cp .env.example .env
+   # Edit .env and add your GEMINI_API_KEY
+   ```
+
+2. **Build and Run Both Services**
+   ```bash
+   docker-compose up --build
+   ```
+
+3. **Access the Services**
+   - **API Documentation**: http://localhost:8000/docs
+   - **Chainlit Web UI**: http://localhost:8001
+   - **API Health Check**: http://localhost:8000/api/health
+
+### Option 2: Local Development
+
+#### API Service Only
 
 1. **Clone and Setup**
    ```bash
@@ -60,7 +81,7 @@ The service supports 17+ cloud component types:
    uv sync
    ```
 
-3. **Run the Service**
+3. **Run the API Service**
    ```bash
    uv run uvicorn main:app --reload
    ```
@@ -69,26 +90,40 @@ The service supports 17+ cloud component types:
    - API Documentation: http://localhost:8000/docs
    - Health Check: http://localhost:8000/api/health
 
-### Docker Deployment
+#### Chainlit Web UI
 
-1. **Setup Environment**
+1. **Install Dependencies** (if not already done)
    ```bash
-   cp .env.example .env
-   # Edit .env and add your GEMINI_API_KEY
+   uv sync
    ```
 
-2. **Build and Run**
+2. **Run Chainlit**
    ```bash
-   docker-compose up --build
+   uv run chainlit run chainlit_app.py --host 0.0.0.0 --port 8001
    ```
 
-3. **Access the Service**
-   - API: http://localhost:8000
-   - Documentation: http://localhost:8000/docs
+3. **Access Chainlit**
+   - Web UI: http://localhost:8001
 
-## API Endpoints
+## Usage
 
-### Core Endpoints
+### Web Interface (Chainlit)
+
+The easiest way to create diagrams is through the Chainlit web interface:
+
+1. **Open the Web UI**: Navigate to http://localhost:8001
+2. **Start a Conversation**: Type your diagram request in natural language
+3. **View Results**: The assistant will generate and display your diagram
+
+**Example Requests:**
+```
+"Create a web application with load balancer and database"
+"Design a microservices architecture with API gateway"
+"Build a simple 3-tier architecture"
+"Show me a diagram with User -> Nginx -> API -> Redis, and API -> Database"
+```
+
+### API Endpoints
 
 #### `POST /api/generate-diagram`
 Generate a diagram from natural language description.
@@ -167,7 +202,33 @@ Group the services in a cluster called 'Microservices'. Add CloudWatch for monit
 **Generated Architecture:**
 - ALB (API Gateway) → Microservices Cluster (Auth, Payment, Order) → RDS + SQS + CloudWatch
 
+### Example 3: Using Chainlit Web UI
+
+**Step 1**: Open http://localhost:8001 in your browser
+
+**Step 2**: Type your request:
+```
+"Create me this diagram - User -> Nginx -> API -> Redis, and API -> Database"
+```
+
+**Step 3**: The assistant will generate and display the diagram with:
+- User → Nginx (Load Balancer)
+- Nginx → API Server
+- API Server → Redis Cache
+- API Server → Database
+
 ## Architecture
+
+### Components
+
+The service consists of several key components:
+
+1. **FastAPI Application** (`main.py`): REST API service
+2. **Chainlit Application** (`chainlit_app.py`): Web chat interface
+3. **DiagramAgent**: Main orchestrator for diagram creation
+4. **DiagramTools**: Wrapper around the `diagrams` package
+5. **GeminiClient**: LLM integration with visible prompt logic
+6. **DiagramAgentPool**: Manages concurrent requests
 
 ### Agent System
 
@@ -223,6 +284,7 @@ HOST=0.0.0.0
 PORT=8000
 AGENT_POOL_SIZE=3
 LOG_LEVEL=INFO
+USE_MOCK_LLM=false  # Set to true for testing without API key
 ```
 
 ### Agent Pool Configuration
@@ -251,7 +313,8 @@ diagram-service/
 │   ├── llm/             # LLM integration
 │   └── api/             # FastAPI routes
 ├── tests/               # Unit tests
-├── main.py              # Application entry point
+├── main.py              # FastAPI application entry point
+├── chainlit_app.py      # Chainlit web UI entry point
 ├── Dockerfile           # Container configuration
 ├── docker-compose.yml   # Multi-container setup
 └── README.md            # This file
@@ -347,6 +410,7 @@ print(f"Diagram URL: {result['image_url']}")
 
 1. **"GEMINI_API_KEY not set"**
    - Solution: Add your Gemini API key to `.env` file
+   - Alternative: Set `USE_MOCK_LLM=true` for testing
 
 2. **"graphviz not found"**
    - Solution: Install graphviz system package
@@ -356,8 +420,15 @@ print(f"Diagram URL: {result['image_url']}")
 3. **"Port 8000 already in use"**
    - Solution: Change PORT in `.env` or stop conflicting service
 
-4. **Docker build fails**
+4. **"Port 8001 already in use" (Chainlit)**
+   - Solution: Change Chainlit port or stop conflicting service
+
+5. **Docker build fails**
    - Solution: Ensure Docker has enough memory (>2GB recommended)
+
+6. **Chainlit not starting**
+   - Solution: Check if all dependencies are installed: `uv sync`
+   - Check logs: `docker-compose logs chainlit`
 
 ### Logs
 
@@ -366,9 +437,11 @@ Check application logs for detailed error information:
 ```bash
 # Local development
 uv run uvicorn main:app --log-level debug
+uv run chainlit run chainlit_app.py --log-level debug
 
 # Docker
 docker-compose logs -f diagram-service
+docker-compose logs -f chainlit
 ```
 
 ## License

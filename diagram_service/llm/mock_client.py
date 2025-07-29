@@ -18,8 +18,17 @@ class MockLLMClient:
         # Simple heuristics to generate reasonable diagrams based on keywords
         description_lower = user_description.lower()
         
+        # Check for specific patterns in the user's request
+        if "nginx" in description_lower and "api" in description_lower:
+            return self._create_nginx_api_diagram(user_description)
+        elif "user" in description_lower and "api" in description_lower:
+            return self._create_user_api_diagram(user_description)
+        elif "redis" in description_lower:
+            return self._create_redis_diagram(user_description)
+        elif "database" in description_lower and "api" in description_lower:
+            return self._create_api_database_diagram(user_description)
         # Determine diagram type and components based on keywords
-        if "microservices" in description_lower:
+        elif "microservices" in description_lower:
             return self._create_microservices_diagram(user_description)
         elif "web app" in description_lower or "web application" in description_lower:
             return self._create_web_app_diagram(user_description)
@@ -35,8 +44,18 @@ class MockLLMClient:
         
         message_lower = user_message.lower()
         
-        if "diagram" in message_lower or "architecture" in message_lower:
-            return self._generate_diagram_response(user_message, supported_node_types)
+        # Check if this is a diagram request
+        diagram_keywords = ['diagram', 'create', 'generate', 'show', 'draw', 'build', 'architecture']
+        is_diagram_request = any(keyword in message_lower for keyword in diagram_keywords)
+        
+        if is_diagram_request:
+            # Generate a diagram specification in JSON format
+            try:
+                diagram_spec = await self.generate_diagram_specification(user_message, supported_node_types)
+                return json.dumps(diagram_spec.dict(), indent=2)
+            except Exception as e:
+                self.logger.error(f"Failed to generate diagram specification: {e}")
+                return self._general_response(user_message)
         elif "components" in message_lower or "supported" in message_lower:
             return self._list_components_response(supported_node_types)
         elif "help" in message_lower or "how" in message_lower:
@@ -127,6 +146,68 @@ class MockLLMClient:
             connections=[
                 {"source": "web", "target": "db"},
                 {"source": "web", "target": "storage"}
+            ]
+        )
+    
+    def _create_nginx_api_diagram(self, description: str) -> DiagramRequest:
+        """Create a diagram with Nginx, API, and Redis."""
+        return DiagramRequest(
+            name="Nginx API Architecture",
+            nodes=[
+                {"id": "user", "type": "general", "label": "User"},
+                {"id": "nginx", "type": "alb", "label": "Nginx"},
+                {"id": "api", "type": "ec2", "label": "API Server"},
+                {"id": "redis", "type": "general", "label": "Redis Cache"},
+                {"id": "database", "type": "rds", "label": "Database"}
+            ],
+            connections=[
+                {"source": "user", "target": "nginx"},
+                {"source": "nginx", "target": "api"},
+                {"source": "api", "target": "redis"},
+                {"source": "api", "target": "database"}
+            ]
+        )
+    
+    def _create_user_api_diagram(self, description: str) -> DiagramRequest:
+        """Create a diagram with User and API components."""
+        return DiagramRequest(
+            name="User API Architecture",
+            nodes=[
+                {"id": "user", "type": "general", "label": "User"},
+                {"id": "api", "type": "ec2", "label": "API Server"},
+                {"id": "database", "type": "rds", "label": "Database"}
+            ],
+            connections=[
+                {"source": "user", "target": "api"},
+                {"source": "api", "target": "database"}
+            ]
+        )
+    
+    def _create_redis_diagram(self, description: str) -> DiagramRequest:
+        """Create a diagram with Redis cache."""
+        return DiagramRequest(
+            name="Redis Cache Architecture",
+            nodes=[
+                {"id": "api", "type": "ec2", "label": "API Server"},
+                {"id": "redis", "type": "general", "label": "Redis Cache"},
+                {"id": "database", "type": "rds", "label": "Database"}
+            ],
+            connections=[
+                {"source": "api", "target": "redis"},
+                {"source": "api", "target": "database"}
+            ]
+        )
+    
+    def _create_api_database_diagram(self, description: str) -> DiagramRequest:
+        """Create a diagram with API and Database."""
+        return DiagramRequest(
+            name="API Database Architecture",
+            nodes=[
+                {"id": "api", "type": "ec2", "label": "API Server"},
+                {"id": "database", "type": "rds", "label": "Database"}
+            ],
+            connections=[
+                {"source": "api", "target": "database"}
             ]
         )
     

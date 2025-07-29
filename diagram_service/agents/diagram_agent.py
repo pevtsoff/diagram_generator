@@ -77,6 +77,8 @@ class DiagramAgent:
             # Use LLM for assistant-style response
             response = await self.llm_client.assistant_chat(user_message, supported_node_types)
             
+            self.logger.info(f"LLM Response: {response}")
+            
             # Try to detect if response contains a diagram specification
             if self._looks_like_diagram_request(response):
                 try:
@@ -89,37 +91,68 @@ class DiagramAgent:
                     
                     if json_start != -1 and json_end > json_start:
                         json_content = response[json_start:json_end]
-                        diagram_data = json.loads(json_content)
+                        self.logger.info(f"Extracted JSON: {json_content}")
                         
-                        # Validate and create diagram
-                        diagram_spec = DiagramRequest(**diagram_data)
-                        image_path = self.diagram_tools.create_diagram(
-                            name=diagram_spec.name,
-                            nodes=diagram_spec.nodes,
-                            connections=diagram_spec.connections,
-                            clusters=diagram_spec.clusters
-                        )
-                        
+                        try:
+                            diagram_data = json.loads(json_content)
+                            self.logger.info(f"Parsed diagram data: {diagram_data}")
+                            
+                            # Validate and create diagram
+                            diagram_spec = DiagramRequest(**diagram_data)
+                            image_path = self.diagram_tools.create_diagram(
+                                name=diagram_spec.name,
+                                nodes=diagram_spec.nodes,
+                                connections=diagram_spec.connections,
+                                clusters=diagram_spec.clusters
+                            )
+                            
+                            return {
+                                "type": "diagram",
+                                "diagram_path": image_path,
+                                "message": "Diagram generated successfully!",
+                                "specification": diagram_spec.dict(),
+                                "response": response
+                            }
+                            
+                        except json.JSONDecodeError as e:
+                            self.logger.error(f"JSON decode error: {e}")
+                            return {
+                                "type": "error",
+                                "message": f"Failed to parse JSON response: {e}"
+                            }
+                        except Exception as e:
+                            self.logger.error(f"Diagram creation error: {e}")
+                            return {
+                                "type": "error", 
+                                "message": f"Failed to create diagram: {e}"
+                            }
+                    else:
+                        self.logger.warning("No JSON found in response")
                         return {
-                            "type": "diagram",
-                            "image_path": image_path,
-                            "specification": diagram_spec.dict(),
-                            "text_response": response
+                            "type": "text",
+                            "response": response
                         }
                         
-                except (json.JSONDecodeError, ValueError) as e:
-                    self.logger.warning(f"Failed to parse diagram from assistant response: {e}")
+                except Exception as e:
+                    self.logger.error(f"Failed to parse diagram from assistant response: {e}")
+                    return {
+                        "type": "error",
+                        "message": f"Failed to parse diagram: {e}"
+                    }
             
             # Return as text response
             return {
                 "type": "text",
-                "text_response": response,
+                "response": response,
                 "supported_node_types": supported_node_types
             }
             
         except Exception as e:
             self.logger.error(f"Error in assistant chat: {e}")
-            raise
+            return {
+                "type": "error",
+                "message": f"Unexpected error: {e}"
+            }
     
     def _looks_like_diagram_request(self, response: str) -> bool:
         """Heuristic to detect if response contains a diagram specification."""
