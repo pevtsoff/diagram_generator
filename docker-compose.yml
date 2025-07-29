@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  diagram-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - HOST=0.0.0.0
+      - PORT=8000
+      - AGENT_POOL_SIZE=3
+      - LOG_LEVEL=INFO
+    env_file:
+      - .env
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    volumes:
+      # Mount for temporary files (optional, for development)
+      - /tmp/diagram-service:/tmp/diagram-service
+    networks:
+      - diagram-network
+
+networks:
+  diagram-network:
+    driver: bridge 
