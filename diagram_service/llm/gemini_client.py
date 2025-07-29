@@ -169,7 +169,7 @@ RESPONSE FORMAT:
             prompt = self._build_diagram_generation_prompt(user_message, supported_node_types)
         else:
             # Use the assistant prompt for general questions
-            prompt = self._build_assistant_prompt(user_message, supported_node_types)
+        prompt = self._build_assistant_prompt(user_message, supported_node_types)
         
         try:
             # Call Gemini API

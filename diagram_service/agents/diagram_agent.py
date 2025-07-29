@@ -94,26 +94,26 @@ class DiagramAgent:
                         self.logger.info(f"Extracted JSON: {json_content}")
                         
                         try:
-                            diagram_data = json.loads(json_content)
+                        diagram_data = json.loads(json_content)
                             self.logger.info(f"Parsed diagram data: {diagram_data}")
-                            
-                            # Validate and create diagram
-                            diagram_spec = DiagramRequest(**diagram_data)
-                            image_path = self.diagram_tools.create_diagram(
-                                name=diagram_spec.name,
-                                nodes=diagram_spec.nodes,
-                                connections=diagram_spec.connections,
-                                clusters=diagram_spec.clusters
-                            )
-                            
-                            return {
-                                "type": "diagram",
+                        
+                        # Validate and create diagram
+                        diagram_spec = DiagramRequest(**diagram_data)
+                        image_path = self.diagram_tools.create_diagram(
+                            name=diagram_spec.name,
+                            nodes=diagram_spec.nodes,
+                            connections=diagram_spec.connections,
+                            clusters=diagram_spec.clusters
+                        )
+                        
+                        return {
+                            "type": "diagram",
                                 "diagram_path": image_path,
                                 "message": "Diagram generated successfully!",
-                                "specification": diagram_spec.dict(),
+                            "specification": diagram_spec.dict(),
                                 "response": response
-                            }
-                            
+                        }
+                        
                         except json.JSONDecodeError as e:
                             self.logger.error(f"JSON decode error: {e}")
                             return {
