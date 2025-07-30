@@ -11,6 +11,7 @@ services:
       - PORT=8000
       - AGENT_POOL_SIZE=3
       - LOG_LEVEL=INFO
+      - IMAGES_DIR=/tmp/diagram_service_images
     env_file:
       - .env
     restart: unless-stopped
@@ -34,6 +35,7 @@ services:
       - "8001:8001"
     environment:
       - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - IMAGES_DIR=/tmp/diagram_service_images
     env_file:
       - .env
     volumes:

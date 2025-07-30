@@ -1,5 +1,6 @@
 import os
 import tempfile
+import logging
 from typing import List, Dict, Any, Optional
 from pathlib import Path
 import uuid
@@ -24,10 +25,18 @@ class DiagramTools:
     """Tools for creating diagrams using the diagrams package."""
     
     def __init__(self):
-        # Use a shared images directory for easier serving
-        import os
-        self.images_dir = os.path.join(tempfile.gettempdir(), "diagram_service_images")
+        # Use environment variable for images directory or fallback to temp directory
+        images_dir = os.getenv("IMAGES_DIR")
+        if images_dir:
+            self.images_dir = images_dir
+        else:
+            self.images_dir = os.path.join(tempfile.gettempdir(), "diagram_service_images")
+        
         os.makedirs(self.images_dir, exist_ok=True)
+        
+        # Log the images directory being used
+        logger = logging.getLogger(__name__)
+        logger.info(f"Using images directory: {self.images_dir}")
         self.supported_node_types = {
             # AWS Services
             "ec2": EC2,
@@ -111,7 +120,7 @@ class DiagramTools:
         """Return list of supported node types."""
         return list(self.supported_node_types.keys())
     
-    def cleanup(self):
+    def cleanup(self) -> None:
         """Clean up temporary files."""
         # Don't clean up the shared images directory as other agents might be using it
         # In production, implement proper cleanup strategy (e.g., TTL-based cleanup)

@@ -285,6 +285,7 @@ PORT=8000
 AGENT_POOL_SIZE=3
 LOG_LEVEL=INFO
 USE_MOCK_LLM=false  # Set to true for testing without API key
+IMAGES_DIR=/tmp/diagram_service_images  # Directory for storing generated diagrams
 ```
 
 ### Agent Pool Configuration
