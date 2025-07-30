@@ -15,7 +15,10 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 # Copy project files
 COPY pyproject.toml ./
+COPY uv.lock ./
+COPY README.md ./
 COPY main.py ./
+COPY chainlit_app.py ./
 COPY diagram_service/ ./diagram_service/
 
 # Install dependencies

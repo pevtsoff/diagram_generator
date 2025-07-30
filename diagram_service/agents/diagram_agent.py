@@ -10,13 +10,9 @@ from diagram_service.llm.gemini_client import GeminiClient, DiagramRequest
 class DiagramAgent:
     """Main agent for creating diagrams from natural language descriptions."""
     
-    def __init__(self, gemini_api_key: str, use_mock: bool = False):
+    def __init__(self, gemini_api_key: str):
         """Initialize the diagram agent with LLM client and tools."""
-        if use_mock:
-            from diagram_service.llm.mock_client import MockLLMClient
-            self.llm_client: Union[GeminiClient, 'MockLLMClient'] = MockLLMClient()
-        else:
-            self.llm_client: Union[GeminiClient, 'MockLLMClient'] = GeminiClient(gemini_api_key)
+        self.llm_client = GeminiClient(gemini_api_key)
         self.diagram_tools = DiagramTools()
         self.logger = logging.getLogger(__name__)
         
@@ -77,6 +73,8 @@ class DiagramAgent:
             # Use LLM for assistant-style response
             response = await self.llm_client.assistant_chat(user_message, supported_node_types)
             
+            self.logger.info(f"LLM Response: {response}")
+            
             # Try to detect if response contains a diagram specification
             if self._looks_like_diagram_request(response):
                 try:
@@ -89,37 +87,68 @@ class DiagramAgent:
                     
                     if json_start != -1 and json_end > json_start:
                         json_content = response[json_start:json_end]
-                        diagram_data = json.loads(json_content)
+                        self.logger.info(f"Extracted JSON: {json_content}")
                         
-                        # Validate and create diagram
-                        diagram_spec = DiagramRequest(**diagram_data)
-                        image_path = self.diagram_tools.create_diagram(
-                            name=diagram_spec.name,
-                            nodes=diagram_spec.nodes,
-                            connections=diagram_spec.connections,
-                            clusters=diagram_spec.clusters
-                        )
-                        
+                        try:
+                            diagram_data = json.loads(json_content)
+                            self.logger.info(f"Parsed diagram data: {diagram_data}")
+                            
+                            # Validate and create diagram
+                            diagram_spec = DiagramRequest(**diagram_data)
+                            image_path = self.diagram_tools.create_diagram(
+                                name=diagram_spec.name,
+                                nodes=diagram_spec.nodes,
+                                connections=diagram_spec.connections,
+                                clusters=diagram_spec.clusters
+                            )
+                            
+                            return {
+                                "type": "diagram",
+                                "diagram_path": image_path,
+                                "message": "Diagram generated successfully!",
+                                "specification": diagram_spec.model_dump(),
+                                "response": response
+                            }
+                            
+                        except json.JSONDecodeError as e:
+                            self.logger.error(f"JSON decode error: {e}")
+                            return {
+                                "type": "error",
+                                "message": f"Failed to parse JSON response: {e}"
+                            }
+                        except Exception as e:
+                            self.logger.error(f"Diagram creation error: {e}")
+                            return {
+                                "type": "error", 
+                                "message": f"Failed to create diagram: {e}"
+                            }
+                    else:
+                        self.logger.warning("No JSON found in response")
                         return {
-                            "type": "diagram",
-                            "image_path": image_path,
-                            "specification": diagram_spec.dict(),
-                            "text_response": response
+                            "type": "text",
+                            "response": response
                         }
                         
-                except (json.JSONDecodeError, ValueError) as e:
-                    self.logger.warning(f"Failed to parse diagram from assistant response: {e}")
+                except Exception as e:
+                    self.logger.error(f"Failed to parse diagram from assistant response: {e}")
+                    return {
+                        "type": "error",
+                        "message": f"Failed to parse diagram: {e}"
+                    }
             
             # Return as text response
             return {
                 "type": "text",
-                "text_response": response,
+                "response": response,
                 "supported_node_types": supported_node_types
             }
             
         except Exception as e:
             self.logger.error(f"Error in assistant chat: {e}")
-            raise
+            return {
+                "type": "error",
+                "message": f"Unexpected error: {e}"
+            }
     
     def _looks_like_diagram_request(self, response: str) -> bool:
         """Heuristic to detect if response contains a diagram specification."""
@@ -153,31 +182,14 @@ class DiagramAgent:
 class DiagramAgentPool:
     """Pool of diagram agents for handling concurrent requests."""
     
-    def __init__(self, gemini_api_key: str, pool_size: int = 3, use_mock: bool = False):
-        """Initialize agent pool."""
+    def __init__(self, gemini_api_key: str, pool_size: int = 3):
+        """Initialize the agent pool."""
         self.gemini_api_key = gemini_api_key
         self.pool_size = pool_size
-        self.use_mock = use_mock
-        self.agents: List[DiagramAgent] = []
-        self.semaphore = asyncio.Semaphore(pool_size)
-        
+        self.logger = logging.getLogger(__name__)
+    
     async def get_agent(self) -> DiagramAgent:
-        """Get an available agent from the pool."""
-        await self.semaphore.acquire()
-        
+        """Get an agent from the pool (creates new one for stateless design)."""
         # Create new agent for this request (stateless)
-        agent = DiagramAgent(self.gemini_api_key, use_mock=self.use_mock)
-        return agent
-    
-    def release_agent(self, agent: DiagramAgent):
-        """Release agent back to pool."""
-        agent.cleanup()
-        self.semaphore.release()
-    
-    async def execute_with_agent(self, operation):
-        """Execute operation with an agent from the pool."""
-        agent = await self.get_agent()
-        try:
-            return await operation(agent)
-        finally:
-            self.release_agent(agent) 
+        agent = DiagramAgent(self.gemini_api_key)
+        return agent 

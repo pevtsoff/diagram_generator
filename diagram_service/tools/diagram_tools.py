@@ -1,5 +1,6 @@
 import os
 import tempfile
+import logging
 from typing import List, Dict, Any, Optional
 from pathlib import Path
 import uuid
@@ -18,16 +19,24 @@ from diagrams.gcp.network import LoadBalancing
 from diagrams.azure.compute import VM
 from diagrams.azure.database import SQLDatabases
 from diagrams.azure.network import LoadBalancers
-
+from diagrams.onprem.inmemory import Redis
 
 class DiagramTools:
     """Tools for creating diagrams using the diagrams package."""
     
     def __init__(self):
-        # Use a shared images directory for easier serving
-        import os
-        self.images_dir = os.path.join(tempfile.gettempdir(), "diagram_service_images")
+        # Use environment variable for images directory or fallback to temp directory
+        images_dir = os.getenv("IMAGES_DIR")
+        if images_dir:
+            self.images_dir = images_dir
+        else:
+            self.images_dir = os.path.join(tempfile.gettempdir(), "diagram_service_images")
+        
         os.makedirs(self.images_dir, exist_ok=True)
+        
+        # Log the images directory being used
+        logger = logging.getLogger(__name__)
+        logger.info(f"Using images directory: {self.images_dir}")
         self.supported_node_types = {
             # AWS Services
             "ec2": EC2,
@@ -49,6 +58,7 @@ class DiagramTools:
             "virtual_machines": VM,
             "azure_sql": SQLDatabases,
             "azure_load_balancer": LoadBalancers,
+            "redis": Redis,
         }
         
     def create_node(self, node_type: str, label: str) -> Any:
@@ -60,8 +70,9 @@ class DiagramTools:
         return node_class(label)
     
     def create_diagram(self, name: str, nodes: List[Dict[str, Any]], 
-                      connections: List[Dict[str, Any]], 
-                      clusters: Optional[List[Dict[str, Any]]] = None) -> str:
+        connections: List[Dict[str, Any]], 
+        clusters: Optional[List[Dict[str, Any]]] = None) -> str:
+
         """Create a complete diagram and return the file path."""
         diagram_id = str(uuid.uuid4())
         output_path = os.path.join(self.images_dir, f"{diagram_id}")
@@ -109,7 +120,7 @@ class DiagramTools:
         """Return list of supported node types."""
         return list(self.supported_node_types.keys())
     
-    def cleanup(self):
+    def cleanup(self) -> None:
         """Clean up temporary files."""
         # Don't clean up the shared images directory as other agents might be using it
         # In production, implement proper cleanup strategy (e.g., TTL-based cleanup)
@@ -134,6 +145,7 @@ class DiagramTools:
             "gcp_load_balancer": "Google Cloud Load Balancer",
             "virtual_machines": "Azure Virtual Machines",
             "azure_sql": "Azure SQL Database service",
-            "azure_load_balancer": "Azure Load Balancer"
+            "azure_load_balancer": "Azure Load Balancer",
+            "redis": "Redis in-memory data structure store"
         }
         return descriptions.get(node_type.lower(), f"Unknown node type: {node_type}") 

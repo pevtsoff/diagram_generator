@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   diagram-service:
     build:
@@ -13,6 +11,7 @@ services:
       - PORT=8000
       - AGENT_POOL_SIZE=3
       - LOG_LEVEL=INFO
+      - IMAGES_DIR=/tmp/diagram_service_images
     env_file:
       - .env
     restart: unless-stopped
@@ -25,6 +24,26 @@ services:
     volumes:
       # Mount for temporary files (optional, for development)
       - /tmp/diagram-service:/tmp/diagram-service
+    networks:
+      - diagram-network
+
+  chainlit:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8001:8001"
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - IMAGES_DIR=/tmp/diagram_service_images
+    env_file:
+      - .env
+    volumes:
+      - ./diagrams:/app/diagrams
+      - ./.chainlit:/app/.chainlit
+    command: uv run chainlit run chainlit_app.py --host 0.0.0.0 --port 8001
+    depends_on:
+      - diagram-service
     networks:
       - diagram-network
 

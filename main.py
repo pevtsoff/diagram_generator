@@ -31,21 +31,17 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info("Starting Diagram Service...")
     
-    # Get Gemini API key (optional for mock mode)
+    # Get Gemini API key
     gemini_api_key = os.getenv("GEMINI_API_KEY")
-    use_mock = os.getenv("USE_MOCK_LLM", "false").lower() == "true"
     
-    if not gemini_api_key and not use_mock:
-        logger.error("GEMINI_API_KEY environment variable is required (or set USE_MOCK_LLM=true)")
-        raise ValueError("GEMINI_API_KEY environment variable is required (or set USE_MOCK_LLM=true)")
+    if not gemini_api_key:
+        logger.error("GEMINI_API_KEY environment variable is required")
+        raise ValueError("GEMINI_API_KEY environment variable is required")
     
     # Initialize agent pool
     pool_size = int(os.getenv("AGENT_POOL_SIZE", "3"))
-    agent_pool = DiagramAgentPool(gemini_api_key or "mock", pool_size, use_mock=use_mock)
+    agent_pool = DiagramAgentPool(gemini_api_key, pool_size)
     set_agent_pool(agent_pool)
-    
-    if use_mock:
-        logger.warning("Using MOCK LLM client - for development/testing only")
     
     logger.info(f"Initialized agent pool with {pool_size} agents")
     logger.info("Diagram Service started successfully")

@@ -159,8 +159,17 @@ RESPONSE FORMAT:
         
         self.logger.info(f"Processing assistant chat: {user_message}")
         
-        # Build the assistant prompt
-        prompt = self._build_assistant_prompt(user_message, supported_node_types)
+        # Check if this looks like a diagram request
+        diagram_keywords = ['diagram', 'create', 'generate', 'show', 'draw', 'build', 'architecture']
+        user_lower = user_message.lower()
+        is_diagram_request = any(keyword in user_lower for keyword in diagram_keywords)
+        
+        if is_diagram_request:
+            # Use the diagram generation prompt for diagram requests
+            prompt = self._build_diagram_generation_prompt(user_message, supported_node_types)
+        else:
+            # Use the assistant prompt for general questions
+            prompt = self._build_assistant_prompt(user_message, supported_node_types)
         
         try:
             # Call Gemini API
