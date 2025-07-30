@@ -67,6 +67,24 @@ class TestMockLLMClient:
         assert len(spec.nodes) >= 3
         assert len(spec.clusters) >= 1
     
+    @pytest.mark.asyncio
+    async def test_generate_diagram_specification_redis(self):
+        """Test diagram specification generation for Redis pattern."""
+        description = "web application with Redis cache and database"
+        supported_types = ["ec2", "rds", "alb", "redis"]
+        
+        spec = await self.mock_client.generate_diagram_specification(description, supported_types)
+        
+        assert isinstance(spec, DiagramRequest)
+        assert "redis" in spec.name.lower()
+        assert len(spec.nodes) >= 3  # api, redis, database
+        assert len(spec.connections) >= 2
+        
+        # Check that Redis node is present
+        redis_nodes = [node for node in spec.nodes if node["type"] == "redis"]
+        assert len(redis_nodes) >= 1
+        assert any("redis" in node["label"].lower() for node in redis_nodes)
+    
     def test_health_check(self):
         """Test health check method."""
         assert self.mock_client.health_check() is True
@@ -184,6 +202,37 @@ class TestLLMResponseParsing:
         assert "ec2" in node_types
         assert "rds" in node_types
         assert "alb" in node_types
+        assert "redis" in node_types  # Test Redis is included
+    
+    @pytest.mark.asyncio
+    async def test_redis_diagram_creation_from_llm(self):
+        """Test creating Redis diagram from LLM response."""
+        message = "create a web app with API server, Redis cache, and database"
+        
+        result = await self.agent.chat_with_assistant(message)
+        
+        assert result["type"] == "diagram"
+        assert "diagram_path" in result
+        assert os.path.exists(result["diagram_path"])
+        
+        # Clean up the generated file
+        if os.path.exists(result["diagram_path"]):
+            os.remove(result["diagram_path"])
+    
+    @pytest.mark.asyncio
+    async def test_redis_cache_architecture(self):
+        """Test Redis cache architecture generation."""
+        message = "design a microservices architecture with Redis for caching"
+        
+        result = await self.agent.chat_with_assistant(message)
+        
+        assert result["type"] == "diagram"
+        assert "diagram_path" in result
+        assert os.path.exists(result["diagram_path"])
+        
+        # Clean up the generated file
+        if os.path.exists(result["diagram_path"]):
+            os.remove(result["diagram_path"])
 
 
 if __name__ == "__main__":

@@ -128,4 +128,81 @@ class TestDiagramTools:
         # The cleanup method should remove the test file
         # Note: The actual cleanup behavior depends on the implementation
         # For now, we just test that the method doesn't raise an error
-        assert True  # If we get here, cleanup didn't raise an exception 
+        assert True  # If we get here, cleanup didn't raise an exception
+    
+    def test_redis_node_creation(self):
+        """Test creating Redis nodes."""
+        with Diagram("test", filename="test_redis_diagram", show=False):
+            # Test Redis node creation
+            redis_node = self.diagram_tools.create_node("redis", "Redis Cache")
+            assert redis_node is not None
+            
+            # Test Redis node with different labels
+            redis_cache = self.diagram_tools.create_node("redis", "Cache Layer")
+            assert redis_cache is not None
+            
+            redis_session = self.diagram_tools.create_node("redis", "Session Store")
+            assert redis_session is not None
+    
+    def test_redis_node_description(self):
+        """Test Redis node description."""
+        description = self.diagram_tools.get_node_description("redis")
+        assert isinstance(description, str)
+        assert len(description) > 0
+        assert "redis" in description.lower()
+        assert "in-memory" in description.lower()
+    
+    def test_redis_in_supported_types(self):
+        """Test that Redis is in supported node types."""
+        supported_types = self.diagram_tools.get_supported_node_types()
+        assert "redis" in supported_types
+    
+    def test_redis_diagram_creation(self):
+        """Test creating a diagram with Redis components."""
+        nodes = [
+            {"id": "api", "type": "ec2", "label": "API Server"},
+            {"id": "redis", "type": "redis", "label": "Redis Cache"},
+            {"id": "db", "type": "rds", "label": "Database"}
+        ]
+        connections = [
+            {"source": "api", "target": "redis"},
+            {"source": "api", "target": "db"}
+        ]
+        
+        image_path = self.diagram_tools.create_diagram(
+            name="API with Redis Cache",
+            nodes=nodes,
+            connections=connections
+        )
+        
+        assert isinstance(image_path, str)
+        assert image_path.endswith(".png")
+        assert os.path.exists(image_path)
+    
+    def test_redis_clustered_diagram(self):
+        """Test creating a diagram with Redis in a cluster."""
+        nodes = [
+            {"id": "api", "type": "ec2", "label": "API Server"},
+            {"id": "redis1", "type": "redis", "label": "Redis Primary"},
+            {"id": "redis2", "type": "redis", "label": "Redis Replica"},
+            {"id": "db", "type": "rds", "label": "Database"}
+        ]
+        connections = [
+            {"source": "api", "target": "redis1"},
+            {"source": "redis1", "target": "redis2"},
+            {"source": "api", "target": "db"}
+        ]
+        clusters = [
+            {"name": "Cache Layer", "nodes": ["redis1", "redis2"]}
+        ]
+        
+        image_path = self.diagram_tools.create_diagram(
+            name="API with Redis Cluster",
+            nodes=nodes,
+            connections=connections,
+            clusters=clusters
+        )
+        
+        assert isinstance(image_path, str)
+        assert image_path.endswith(".png")
+        assert os.path.exists(image_path) 

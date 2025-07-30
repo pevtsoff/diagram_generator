@@ -189,7 +189,7 @@ class MockLLMClient:
             name="Redis Cache Architecture",
             nodes=[
                 {"id": "api", "type": "ec2", "label": "API Server"},
-                {"id": "redis", "type": "general", "label": "Redis Cache"},
+                {"id": "redis", "type": "redis", "label": "Redis Cache"},
                 {"id": "database", "type": "rds", "label": "Database"}
             ],
             connections=[

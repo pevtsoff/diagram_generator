@@ -136,6 +136,7 @@ class DiagramTools:
             "gcp_load_balancer": "Google Cloud Load Balancer",
             "virtual_machines": "Azure Virtual Machines",
             "azure_sql": "Azure SQL Database service",
-            "azure_load_balancer": "Azure Load Balancer"
+            "azure_load_balancer": "Azure Load Balancer",
+            "redis": "Redis in-memory data structure store"
         }
         return descriptions.get(node_type.lower(), f"Unknown node type: {node_type}") 
