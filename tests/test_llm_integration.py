@@ -1,8 +1,9 @@
 import pytest
 import asyncio
 import os
+import logging
 from unittest.mock import patch
-from diagram_service.llm.mock_client import MockLLMClient
+from tests.mocks.mock_client import MockLLMClient
 from diagram_service.agents.diagram_agent import DiagramAgent
 from diagram_service.llm.gemini_client import DiagramRequest
 
@@ -76,8 +77,17 @@ class TestDiagramAgentIntegration:
     
     def setup_method(self):
         """Setup for each test method."""
-        # Use mock client for testing
-        self.agent = DiagramAgent("mock", use_mock=True)
+        # Create a test-specific agent that uses mock client
+        from tests.mocks.mock_client import MockLLMClient
+        
+        class TestDiagramAgent(DiagramAgent):
+            def __init__(self):
+                from diagram_service.tools.diagram_tools import DiagramTools
+                self.llm_client = MockLLMClient()
+                self.diagram_tools = DiagramTools()
+                self.logger = logging.getLogger(__name__)
+        
+        self.agent = TestDiagramAgent()
     
     def teardown_method(self):
         """Cleanup after each test method."""
@@ -124,7 +134,7 @@ class TestDiagramAgentIntegration:
         assert self.agent is not None
         assert hasattr(self.agent, 'llm_client')
         assert hasattr(self.agent, 'diagram_tools')
-        assert self.agent.use_mock is True
+        assert isinstance(self.agent.llm_client, MockLLMClient)
 
 
 class TestLLMResponseParsing:
@@ -132,7 +142,17 @@ class TestLLMResponseParsing:
     
     def setup_method(self):
         """Setup for each test method."""
-        self.agent = DiagramAgent("mock", use_mock=True)
+        # Create a test-specific agent that uses mock client
+        from tests.mocks.mock_client import MockLLMClient
+        
+        class TestDiagramAgent(DiagramAgent):
+            def __init__(self):
+                from diagram_service.tools.diagram_tools import DiagramTools
+                self.llm_client = MockLLMClient()
+                self.diagram_tools = DiagramTools()
+                self.logger = logging.getLogger(__name__)
+        
+        self.agent = TestDiagramAgent()
     
     def teardown_method(self):
         """Cleanup after each test method."""
@@ -181,7 +201,16 @@ if __name__ == "__main__":
         print(f"Mock client response: {response[:200]}...")
         
         # Test agent
-        agent = DiagramAgent("mock", use_mock=True)
+        from tests.mocks.mock_client import MockLLMClient
+        
+        class TestDiagramAgent(DiagramAgent):
+            def __init__(self):
+                from diagram_service.tools.diagram_tools import DiagramTools
+                self.llm_client = MockLLMClient()
+                self.diagram_tools = DiagramTools()
+                self.logger = logging.getLogger(__name__)
+        
+        agent = TestDiagramAgent()
         result = await agent.chat_with_assistant("create a simple web app")
         print(f"Agent result type: {result.get('type')}")
         

@@ -13,4 +13,4 @@ wheels/
 .vscode
 .chainlit
 .pytest_cache
-
+.env

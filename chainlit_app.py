@@ -23,23 +23,19 @@ agent: Optional[DiagramAgent] = None
 
 @cl.on_chat_start
 async def start():
-    """Initialize the chat session."""
     global agent
     
-    # Check for API key
     gemini_api_key = os.getenv("GEMINI_API_KEY")
-    use_mock = os.getenv("USE_MOCK_LLM", "false").lower() == "true"
     
-    if not gemini_api_key and not use_mock:
+    if not gemini_api_key:
         await cl.Message(
-            content="⚠️ **Warning**: No Gemini API key found. Please set `GEMINI_API_KEY` in your environment or set `USE_MOCK_LLM=true` for testing.",
+            content="⚠️ **Warning**: No Gemini API key found. Please set `GEMINI_API_KEY` in your environment.",
             author="System"
         ).send()
         return
     
     try:
-        # Initialize the agent with API key
-        agent = DiagramAgent(gemini_api_key or "mock", use_mock=use_mock)
+        agent = DiagramAgent(gemini_api_key)
         await cl.Message(
             content="🎉 **Diagram Generator Assistant** is ready!\n\nI can help you create various types of diagrams including:\n\n• AWS architecture diagrams\n• Network diagrams\n• System architecture diagrams\n• Flow charts\n• Sequence diagrams\n\nJust describe what you want, and I'll create it for you!",
             author="Assistant"
