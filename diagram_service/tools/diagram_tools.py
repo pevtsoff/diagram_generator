@@ -18,7 +18,7 @@ from diagrams.gcp.network import LoadBalancing
 from diagrams.azure.compute import VM
 from diagrams.azure.database import SQLDatabases
 from diagrams.azure.network import LoadBalancers
-
+from diagrams.onprem.inmemory import Redis
 
 class DiagramTools:
     """Tools for creating diagrams using the diagrams package."""
@@ -49,6 +49,7 @@ class DiagramTools:
             "virtual_machines": VM,
             "azure_sql": SQLDatabases,
             "azure_load_balancer": LoadBalancers,
+            "redis": Redis,
         }
         
     def create_node(self, node_type: str, label: str) -> Any:
@@ -60,8 +61,9 @@ class DiagramTools:
         return node_class(label)
     
     def create_diagram(self, name: str, nodes: List[Dict[str, Any]], 
-                      connections: List[Dict[str, Any]], 
-                      clusters: Optional[List[Dict[str, Any]]] = None) -> str:
+        connections: List[Dict[str, Any]], 
+        clusters: Optional[List[Dict[str, Any]]] = None) -> str:
+
         """Create a complete diagram and return the file path."""
         diagram_id = str(uuid.uuid4())
         output_path = os.path.join(self.images_dir, f"{diagram_id}")
