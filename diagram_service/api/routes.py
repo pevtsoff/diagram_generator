@@ -165,7 +165,7 @@ async def health_check(
     """
     try:
         async def check_health(agent):
-            health = agent.health_check()
+            health = await agent.health_check()
             supported_types = agent.get_supported_components()
             return health, list(supported_types.keys())
         

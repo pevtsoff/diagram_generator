@@ -167,10 +167,11 @@ class DiagramAgent:
             for node_type in node_types
         }
     
-    def health_check(self) -> Dict[str, bool]:
+    async def health_check(self) -> Dict[str, bool]:
         """Check health of all agent components."""
+        llm_health = await self.llm_client.health_check()
         return {
-            "llm_client": self.llm_client.health_check(),
+            "llm_client": llm_health,
             "diagram_tools": True  # DiagramTools doesn't have async dependencies
         }
     

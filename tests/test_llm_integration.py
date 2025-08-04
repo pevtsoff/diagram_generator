@@ -85,9 +85,10 @@ class TestMockLLMClient:
         assert len(redis_nodes) >= 1
         assert any("redis" in node["label"].lower() for node in redis_nodes)
     
-    def test_health_check(self):
+    @pytest.mark.asyncio
+    async def test_health_check(self):
         """Test health check method."""
-        assert self.mock_client.health_check() is True
+        assert await self.mock_client.health_check() is True
 
 
 class TestDiagramAgentIntegration:

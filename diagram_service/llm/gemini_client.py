@@ -127,7 +127,7 @@ RESPONSE FORMAT:
         
         try:
             # Call Gemini API
-            response = self.model.generate_content(prompt)
+            response = await self.model.generate_content_async(prompt)
             response_text = response.text.strip()
             
             self.logger.info(f"Raw LLM response: {response_text}")
@@ -173,17 +173,17 @@ RESPONSE FORMAT:
         
         try:
             # Call Gemini API
-            response = self.model.generate_content(prompt)
-            return response.text.strip()
+            response = await self.model.generate_content_async(prompt)
+            return str(response.text.strip())
             
         except Exception as e:
             self.logger.error(f"Error in assistant chat: {e}")
             raise
 
-    def health_check(self) -> bool:
+    async def health_check(self) -> bool:
         """Check if the LLM client is working properly."""
         try:
-            test_response = self.model.generate_content("Hello, respond with 'OK'")
+            test_response = await self.model.generate_content_async("Hello, respond with 'OK'")
             return "OK" in test_response.text
         except Exception:
             return False 

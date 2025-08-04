@@ -63,7 +63,7 @@ class MockLLMClient:
         else:
             return self._general_response(user_message)
     
-    def health_check(self) -> bool:
+    async def health_check(self) -> bool:
         """Mock health check - always returns True."""
         return True
     
