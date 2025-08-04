@@ -72,13 +72,13 @@ class MockLLMClient:
         return DiagramRequest(
             name="Microservices Architecture",
             nodes=[
-                {"id": "gateway", "type": "alb", "label": "API Gateway"},
-                {"id": "auth", "type": "ec2", "label": "Auth Service"},
-                {"id": "payment", "type": "ec2", "label": "Payment Service"},
-                {"id": "order", "type": "ec2", "label": "Order Service"},
-                {"id": "queue", "type": "sqs", "label": "Message Queue"},
-                {"id": "db", "type": "rds", "label": "Shared Database"},
-                {"id": "monitor", "type": "cloudwatch", "label": "Monitoring"}
+                {"id": "gateway", "type": "aws_alb", "label": "API Gateway"},
+                {"id": "auth", "type": "aws_ec2", "label": "Auth Service"},
+                {"id": "payment", "type": "aws_ec2", "label": "Payment Service"},
+                {"id": "order", "type": "aws_ec2", "label": "Order Service"},
+                {"id": "queue", "type": "aws_sqs", "label": "Message Queue"},
+                {"id": "db", "type": "aws_rds", "label": "Shared Database"},
+                {"id": "monitor", "type": "aws_cloudwatch", "label": "Monitoring"}
             ],
             connections=[
                 {"source": "gateway", "target": "auth"},
@@ -103,10 +103,10 @@ class MockLLMClient:
         return DiagramRequest(
             name="Web Application Architecture",
             nodes=[
-                {"id": "lb", "type": "alb", "label": "Load Balancer"},
-                {"id": "web1", "type": "ec2", "label": "Web Server 1"},
-                {"id": "web2", "type": "ec2", "label": "Web Server 2"},
-                {"id": "db", "type": "rds", "label": "Database"}
+                {"id": "lb", "type": "aws_alb", "label": "Load Balancer"},
+                {"id": "web1", "type": "aws_ec2", "label": "Web Server 1"},
+                {"id": "web2", "type": "aws_ec2", "label": "Web Server 2"},
+                {"id": "db", "type": "aws_rds", "label": "Database"}
             ],
             connections=[
                 {"source": "lb", "target": "web1"},
@@ -124,9 +124,9 @@ class MockLLMClient:
         return DiagramRequest(
             name="Simple Web Application",
             nodes=[
-                {"id": "lb", "type": "alb", "label": "Load Balancer"},
-                {"id": "web", "type": "ec2", "label": "Web Server"},
-                {"id": "db", "type": "rds", "label": "Database"}
+                {"id": "lb", "type": "aws_alb", "label": "Load Balancer"},
+                {"id": "web", "type": "aws_ec2", "label": "Web Server"},
+                {"id": "db", "type": "aws_rds", "label": "Database"}
             ],
             connections=[
                 {"source": "lb", "target": "web"},
@@ -139,9 +139,9 @@ class MockLLMClient:
         return DiagramRequest(
             name="Cloud Architecture",
             nodes=[
-                {"id": "web", "type": "ec2", "label": "Application Server"},
-                {"id": "db", "type": "rds", "label": "Database"},
-                {"id": "storage", "type": "s3", "label": "File Storage"}
+                {"id": "web", "type": "aws_ec2", "label": "Application Server"},
+                {"id": "db", "type": "aws_rds", "label": "Database"},
+                {"id": "storage", "type": "aws_s3", "label": "File Storage"}
             ],
             connections=[
                 {"source": "web", "target": "db"},
@@ -154,11 +154,11 @@ class MockLLMClient:
         return DiagramRequest(
             name="Nginx API Architecture",
             nodes=[
-                {"id": "user", "type": "general", "label": "User"},
-                {"id": "nginx", "type": "alb", "label": "Nginx"},
-                {"id": "api", "type": "ec2", "label": "API Server"},
-                {"id": "redis", "type": "general", "label": "Redis Cache"},
-                {"id": "database", "type": "rds", "label": "Database"}
+                {"id": "user", "type": "onprem_user", "label": "User"},
+                {"id": "nginx", "type": "aws_alb", "label": "Nginx"},
+                {"id": "api", "type": "aws_ec2", "label": "API Server"},
+                {"id": "redis", "type": "onprem_redis", "label": "Redis Cache"},
+                {"id": "database", "type": "aws_rds", "label": "Database"}
             ],
             connections=[
                 {"source": "user", "target": "nginx"},
@@ -173,9 +173,9 @@ class MockLLMClient:
         return DiagramRequest(
             name="User API Architecture",
             nodes=[
-                {"id": "user", "type": "general", "label": "User"},
-                {"id": "api", "type": "ec2", "label": "API Server"},
-                {"id": "database", "type": "rds", "label": "Database"}
+                {"id": "user", "type": "onprem_user", "label": "User"},
+                {"id": "api", "type": "aws_ec2", "label": "API Server"},
+                {"id": "database", "type": "aws_rds", "label": "Database"}
             ],
             connections=[
                 {"source": "user", "target": "api"},
@@ -188,9 +188,9 @@ class MockLLMClient:
         return DiagramRequest(
             name="Redis Cache Architecture",
             nodes=[
-                {"id": "api", "type": "ec2", "label": "API Server"},
-                {"id": "redis", "type": "redis", "label": "Redis Cache"},
-                {"id": "database", "type": "rds", "label": "Database"}
+                {"id": "api", "type": "aws_ec2", "label": "API Server"},
+                {"id": "redis", "type": "onprem_redis", "label": "Redis Cache"},
+                {"id": "database", "type": "aws_rds", "label": "Database"}
             ],
             connections=[
                 {"source": "api", "target": "redis"},
@@ -203,8 +203,8 @@ class MockLLMClient:
         return DiagramRequest(
             name="API Database Architecture",
             nodes=[
-                {"id": "api", "type": "ec2", "label": "API Server"},
-                {"id": "database", "type": "rds", "label": "Database"}
+                {"id": "api", "type": "aws_ec2", "label": "API Server"},
+                {"id": "database", "type": "aws_rds", "label": "Database"}
             ],
             connections=[
                 {"source": "api", "target": "database"}

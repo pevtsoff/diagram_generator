@@ -81,7 +81,7 @@ class TestMockLLMClient:
         assert len(spec.connections) >= 2
         
         # Check that Redis node is present
-        redis_nodes = [node for node in spec.nodes if node["type"] == "redis"]
+        redis_nodes = [node for node in spec.nodes if node["type"] == "onprem_redis"]
         assert len(redis_nodes) >= 1
         assert any("redis" in node["label"].lower() for node in redis_nodes)
     
@@ -197,13 +197,13 @@ class TestLLMResponseParsing:
     async def test_supported_node_types_integration(self):
         """Test that supported node types are properly integrated."""
         node_types = self.agent.diagram_tools.get_supported_node_types()
-        
+    
         assert isinstance(node_types, list)
         assert len(node_types) >= 10  # Should have many node types
-        assert "ec2" in node_types
-        assert "rds" in node_types
-        assert "alb" in node_types
-        assert "redis" in node_types  # Test Redis is included
+        assert "aws_ec2" in node_types
+        assert "aws_rds" in node_types
+        assert "aws_alb" in node_types
+        assert "onprem_redis" in node_types  # Test Redis is included
     
     @pytest.mark.asyncio
     async def test_redis_diagram_creation_from_llm(self):

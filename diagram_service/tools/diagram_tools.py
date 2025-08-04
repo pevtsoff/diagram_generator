@@ -4,25 +4,12 @@ import logging
 from typing import List, Dict, Any, Optional
 from pathlib import Path
 import uuid
+import importlib
+import inspect
 from diagrams import Diagram, Cluster
-from diagrams.aws.compute import EC2
-from diagrams.aws.database import RDS
-from diagrams.aws.network import ELB, ALB, Route53
-from diagrams.aws.integration import SQS
-from diagrams.aws.management import Cloudwatch
-from diagrams.aws.general import General
-from diagrams.aws.security import IAM
-from diagrams.aws.storage import S3
-from diagrams.gcp.compute import ComputeEngine, GKE
-from diagrams.gcp.database import SQL
-from diagrams.gcp.network import LoadBalancing
-from diagrams.azure.compute import VM
-from diagrams.azure.database import SQLDatabases
-from diagrams.azure.network import LoadBalancers
-from diagrams.onprem.inmemory import Redis
 
 class DiagramTools:
-    """Tools for creating diagrams using the diagrams package."""
+    """Tools for creating diagrams using the diagrams package with dynamic node discovery."""
     
     def __init__(self):
         # Use environment variable for images directory or fallback to temp directory
@@ -37,29 +24,78 @@ class DiagramTools:
         # Log the images directory being used
         logger = logging.getLogger(__name__)
         logger.info(f"Using images directory: {self.images_dir}")
-        self.supported_node_types = {
-            # AWS Services
-            "ec2": EC2,
-            "rds": RDS,
-            "elb": ELB,
-            "alb": ALB,
-            "sqs": SQS,
-            "s3": S3,
-            "cloudwatch": Cloudwatch,
-            "route53": Route53,
-            "iam": IAM,
-            "general": General,
-            # GCP Services  
-            "compute_engine": ComputeEngine,
-            "gke": GKE,
-            "cloud_sql": SQL,
-            "gcp_load_balancer": LoadBalancing,
-            # Azure Services
-            "virtual_machines": VM,
-            "azure_sql": SQLDatabases,
-            "azure_load_balancer": LoadBalancers,
-            "redis": Redis,
-        }
+        
+        # Dynamically discover all available nodes
+        self.supported_node_types = self._discover_available_nodes()
+        logger.info(f"Discovered {len(self.supported_node_types)} node types")
+        
+    def _discover_available_nodes(self) -> Dict[str, Any]:
+        """Dynamically discover all available node types from the diagrams package."""
+        discovered_nodes = {}
+        
+        # Dynamically discover all available providers and their modules
+        import os
+        import diagrams
+        
+        # Get the diagrams package directory
+        diagrams_path = os.path.dirname(diagrams.__file__)
+        
+        # Discover all provider directories
+        for item in os.listdir(diagrams_path):
+            provider_dir = os.path.join(diagrams_path, item)
+            
+            # Skip if not a directory or if it's a special directory
+            if not os.path.isdir(provider_dir) or item.startswith('_') or item in ['__pycache__']:
+                continue
+                
+            provider = item
+            
+            # Discover all modules within this provider
+            for module_file in os.listdir(provider_dir):
+                if module_file.endswith('.py') and not module_file.startswith('_') and module_file != '__init__.py':
+                    module_name = f'diagrams.{provider}.{module_file[:-3]}'  # Remove .py extension
+                    
+                    try:
+                        module = importlib.import_module(module_name)
+                        self._discover_nodes_in_module(module, discovered_nodes, provider)
+                    except ImportError:
+                        logging.debug(f"Module {module_name} not available")
+                    except Exception as e:
+                        logging.debug(f"Error exploring module {module_name}: {e}")
+        
+        return discovered_nodes
+    
+    def _discover_nodes_in_module(self, module: Any, discovered_nodes: Dict[str, Any], provider: str):
+        """Discover node classes in a module."""
+        for item_name in dir(module):
+            if item_name.startswith('_'):
+                continue
+                
+            item = getattr(module, item_name)
+            
+            # Check if it's a class that could be a diagram node
+            if (inspect.isclass(item) and 
+                hasattr(item, '__module__') and 
+                'diagrams' in item.__module__ and
+                not item_name.startswith('_') and
+                item_name not in ['Node', 'Edge', 'Diagram', 'Cluster']):
+                
+                # Create a normalized key for the node type
+                # Convert CamelCase to snake_case and create a unique identifier
+                node_key = self._normalize_node_name(item_name, provider)
+                
+                if node_key and node_key not in discovered_nodes:
+                    discovered_nodes[node_key] = item
+                    logging.debug(f"Discovered node: {node_key} -> {item.__name__}")
+    
+    def _normalize_node_name(self, class_name: str, provider: str) -> str:
+        """Convert class name to a normalized node type identifier."""
+        # Convert CamelCase to snake_case
+        import re
+        name = re.sub(r'([a-z0-9])([A-Z])', r'\1_\2', class_name).lower()
+        
+        # Add provider prefix for uniqueness
+        return f"{provider}_{name}"
         
     def create_node(self, node_type: str, label: str) -> Any:
         """Create a diagram node of the specified type with given label."""
@@ -128,24 +164,54 @@ class DiagramTools:
 
     def get_node_description(self, node_type: str) -> str:
         """Get description of what a node type represents."""
-        descriptions = {
-            "ec2": "Amazon EC2 compute instances for running applications",
-            "rds": "Amazon RDS managed database service", 
-            "elb": "Elastic Load Balancer for distributing traffic",
-            "alb": "Application Load Balancer for HTTP/HTTPS traffic",
-            "sqs": "Simple Queue Service for message queuing",
-            "s3": "Simple Storage Service for object storage",
-            "cloudwatch": "CloudWatch monitoring and logging service",
-            "route53": "Route 53 DNS service",
-            "iam": "Identity and Access Management service",
-            "general": "General AWS service component",
-            "compute_engine": "Google Compute Engine virtual machines",
-            "gke": "Google Kubernetes Engine for containers",
-            "cloud_sql": "Google Cloud SQL managed database",
-            "gcp_load_balancer": "Google Cloud Load Balancer",
-            "virtual_machines": "Azure Virtual Machines",
-            "azure_sql": "Azure SQL Database service",
-            "azure_load_balancer": "Azure Load Balancer",
-            "redis": "Redis in-memory data structure store"
-        }
-        return descriptions.get(node_type.lower(), f"Unknown node type: {node_type}") 
+        if node_type.lower() not in self.supported_node_types:
+            return f"Unknown node type: {node_type}"
+        
+        # Extract provider and service from the node type
+        parts = node_type.lower().split('_', 1)
+        if len(parts) >= 2:
+            provider, service = parts[0], parts[1]
+            
+            # Create a human-readable description
+            provider_names = {
+                'aws': 'Amazon Web Services',
+                'azure': 'Microsoft Azure', 
+                'gcp': 'Google Cloud Platform',
+                'k8s': 'Kubernetes',
+                'onprem': 'On-Premises',
+                'generic': 'Generic',
+                'programming': 'Programming',
+                'alibabacloud': 'Alibaba Cloud',
+                'digitalocean': 'DigitalOcean',
+                'elastic': 'Elastic',
+                'firebase': 'Firebase',
+                'gis': 'GIS',
+                'ibm': 'IBM Cloud',
+                'oci': 'Oracle Cloud',
+                'openstack': 'OpenStack',
+                'outscale': 'Outscale',
+                'saas': 'SaaS'
+            }
+            
+            provider_name = provider_names.get(provider, provider.upper())
+            service_name = service.replace('_', ' ').title()
+            
+            return f"{provider_name} {service_name} service"
+        
+        return f"Cloud service component: {node_type}"
+    
+    def get_nodes_by_provider(self, provider: str) -> Dict[str, Any]:
+        """Get all nodes for a specific provider."""
+        provider_nodes = {}
+        for node_type, node_class in self.supported_node_types.items():
+            if node_type.startswith(f"{provider}_"):
+                provider_nodes[node_type] = node_class
+        return provider_nodes
+    
+    def get_providers(self) -> List[str]:
+        """Get list of available providers."""
+        providers = set()
+        for node_type in self.supported_node_types.keys():
+            provider = node_type.split('_')[0]
+            providers.add(provider)
+        return sorted(list(providers)) 

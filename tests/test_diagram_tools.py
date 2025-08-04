@@ -22,16 +22,16 @@ class TestDiagramTools:
         
         assert isinstance(node_types, list)
         assert len(node_types) >= 3  # Assignment requires at least 3 types
-        assert "ec2" in node_types
-        assert "rds" in node_types
-        assert "alb" in node_types
+        assert "aws_ec2" in node_types
+        assert "aws_rds" in node_types
+        assert "aws_alb" in node_types
     
     def test_get_node_description(self):
         """Test getting node descriptions."""
-        description = self.diagram_tools.get_node_description("ec2")
+        description = self.diagram_tools.get_node_description("aws_ec2")
         assert isinstance(description, str)
         assert len(description) > 0
-        assert "compute" in description.lower()
+        assert "ec2" in description.lower()
         
         # Test unknown node type
         unknown_desc = self.diagram_tools.get_node_description("unknown_type")
@@ -42,15 +42,15 @@ class TestDiagramTools:
         # Set up diagram context for testing
         with Diagram("test", filename="test_diagram", show=False):
             # Test AWS node
-            ec2_node = self.diagram_tools.create_node("ec2", "Web Server")
+            ec2_node = self.diagram_tools.create_node("aws_ec2", "Web Server")
             assert ec2_node is not None
             
             # Test GCP node
-            gcp_node = self.diagram_tools.create_node("compute_engine", "GCP Server")
+            gcp_node = self.diagram_tools.create_node("gcp_compute_engine", "GCP Server")
             assert gcp_node is not None
             
             # Test Azure node
-            azure_node = self.diagram_tools.create_node("virtual_machines", "Azure VM")
+            azure_node = self.diagram_tools.create_node("azure_vm", "Azure VM")
             assert azure_node is not None
     
     def test_create_node_invalid(self):
@@ -62,8 +62,8 @@ class TestDiagramTools:
     def test_create_simple_diagram(self):
         """Test creating a simple diagram."""
         nodes = [
-            {"id": "web", "type": "ec2", "label": "Web Server"},
-            {"id": "db", "type": "rds", "label": "Database"}
+            {"id": "web", "type": "aws_ec2", "label": "Web Server"},
+            {"id": "db", "type": "aws_rds", "label": "Database"}
         ]
         connections = [
             {"source": "web", "target": "db"}
@@ -82,10 +82,10 @@ class TestDiagramTools:
     def test_create_diagram_with_clusters(self):
         """Test creating a diagram with clusters."""
         nodes = [
-            {"id": "web1", "type": "ec2", "label": "Web Server 1"},
-            {"id": "web2", "type": "ec2", "label": "Web Server 2"},
-            {"id": "db", "type": "rds", "label": "Database"},
-            {"id": "lb", "type": "alb", "label": "Load Balancer"}
+            {"id": "web1", "type": "aws_ec2", "label": "Web Server 1"},
+            {"id": "web2", "type": "aws_ec2", "label": "Web Server 2"},
+            {"id": "db", "type": "aws_rds", "label": "Database"},
+            {"id": "lb", "type": "aws_alb", "label": "Load Balancer"}
         ]
         connections = [
             {"source": "lb", "target": "web1"},
@@ -134,41 +134,41 @@ class TestDiagramTools:
         """Test creating Redis nodes."""
         with Diagram("test", filename="test_redis_diagram", show=False):
             # Test Redis node creation
-            redis_node = self.diagram_tools.create_node("redis", "Redis Cache")
+            redis_node = self.diagram_tools.create_node("onprem_redis", "Redis Cache")
             assert redis_node is not None
-            
+    
             # Test Redis node with different labels
-            redis_cache = self.diagram_tools.create_node("redis", "Cache Layer")
+            redis_cache = self.diagram_tools.create_node("onprem_redis", "Cache Layer")
             assert redis_cache is not None
             
-            redis_session = self.diagram_tools.create_node("redis", "Session Store")
+            redis_session = self.diagram_tools.create_node("onprem_redis", "Session Store")
             assert redis_session is not None
     
     def test_redis_node_description(self):
         """Test Redis node description."""
-        description = self.diagram_tools.get_node_description("redis")
+        description = self.diagram_tools.get_node_description("onprem_redis")
         assert isinstance(description, str)
         assert len(description) > 0
         assert "redis" in description.lower()
-        assert "in-memory" in description.lower()
+        assert "on-premises" in description.lower()
     
     def test_redis_in_supported_types(self):
         """Test that Redis is in supported node types."""
         supported_types = self.diagram_tools.get_supported_node_types()
-        assert "redis" in supported_types
+        assert "onprem_redis" in supported_types
     
     def test_redis_diagram_creation(self):
         """Test creating a diagram with Redis components."""
         nodes = [
-            {"id": "api", "type": "ec2", "label": "API Server"},
-            {"id": "redis", "type": "redis", "label": "Redis Cache"},
-            {"id": "db", "type": "rds", "label": "Database"}
+            {"id": "api", "type": "aws_ec2", "label": "API Server"},
+            {"id": "redis", "type": "onprem_redis", "label": "Redis Cache"},
+            {"id": "db", "type": "aws_rds", "label": "Database"}
         ]
         connections = [
             {"source": "api", "target": "redis"},
             {"source": "api", "target": "db"}
         ]
-        
+    
         image_path = self.diagram_tools.create_diagram(
             name="API with Redis Cache",
             nodes=nodes,
@@ -182,10 +182,10 @@ class TestDiagramTools:
     def test_redis_clustered_diagram(self):
         """Test creating a diagram with Redis in a cluster."""
         nodes = [
-            {"id": "api", "type": "ec2", "label": "API Server"},
-            {"id": "redis1", "type": "redis", "label": "Redis Primary"},
-            {"id": "redis2", "type": "redis", "label": "Redis Replica"},
-            {"id": "db", "type": "rds", "label": "Database"}
+            {"id": "api", "type": "aws_ec2", "label": "API Server"},
+            {"id": "redis1", "type": "onprem_redis", "label": "Redis Primary"},
+            {"id": "redis2", "type": "onprem_redis", "label": "Redis Replica"},
+            {"id": "db", "type": "aws_rds", "label": "Database"}
         ]
         connections = [
             {"source": "api", "target": "redis1"},
@@ -195,7 +195,7 @@ class TestDiagramTools:
         clusters = [
             {"name": "Cache Layer", "nodes": ["redis1", "redis2"]}
         ]
-        
+    
         image_path = self.diagram_tools.create_diagram(
             name="API with Redis Cluster",
             nodes=nodes,
