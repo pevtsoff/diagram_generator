@@ -47,12 +47,25 @@ The service supports 17+ cloud component types:
 - Docker & Docker Compose (for containerized deployment)
 - Gemini API key (free at [Google AI Studio](https://makersuite.google.com/))
 
+### Deployment Options Comparison
+
+| Feature | Docker Compose | Native Installation |
+|---------|----------------|-------------------|
+| **Setup Complexity** | Simple (one command) | Moderate (requires system dependencies) |
+| **System Requirements** | Docker only | Python 3.13+, Graphviz, UV |
+| **Portability** | High (works everywhere) | Requires same environment |
+| **Development** | Good | Excellent (hot reload) |
+| **Resource Usage** | Higher (container overhead) | Lower (direct execution) |
+| **Debugging** | Container logs | Direct process access |
+| **Recommended For** | Production, quick demo | Development, customization |
+
 ### Option 1: Docker Compose (Recommended)
 
 1. **Setup Environment**
    ```bash
    cp .env.example .env
    # Edit .env and add your GEMINI_API_KEY
+   # This .env file will be used by both Docker and native deployments
    ```
 
 2. **Build and Run Both Services**
@@ -65,15 +78,79 @@ The service supports 17+ cloud component types:
    - **Chainlit Web UI**: http://localhost:8001
    - **API Health Check**: http://localhost:8000/api/health
 
-### Option 2: Local Development
+### Option 2: Native Installation
 
-#### API Service Only
+#### Prerequisites for Native Installation
 
-1. **Clone and Setup**
+- **Python 3.13+**
+- **UV package manager** (install from [uv.sh](https://uv.sh))
+- **Graphviz** (required for diagram generation)
+  ```bash
+  # Ubuntu/Debian
+  sudo apt-get install graphviz graphviz-dev pkg-config
+  
+  # macOS
+  brew install graphviz
+  
+  # Windows (using chocolatey)
+  choco install graphviz
+  ```
+
+#### Step-by-Step Native Setup
+
+1. **Clone and Setup Environment**
    ```bash
-   cd diagram-service
+   git clone <repository-url>
+   cd diagram_generator
    cp .env.example .env
    # Edit .env and add your GEMINI_API_KEY
+   # Note: Use the same .env file created for Docker deployment
+   ```
+
+2. **Install Dependencies**
+   ```bash
+   uv sync
+   ```
+
+3. **Launch Services**
+
+   **Option A: Run Both Services (Recommended)**
+   
+   In separate terminals:
+   
+   **Terminal 1 - API Service:**
+   ```bash
+   uv run uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+   ```
+   
+   **Terminal 2 - Chainlit Web UI:**
+   ```bash
+   uv run chainlit run chainlit_app.py --host 0.0.0.0 --port 8001
+   ```
+
+   **Option B: Run Only Chainlit (Uses API Service)**
+   
+   If you have the API service running elsewhere or want to use a different API endpoint:
+   ```bash
+   # Set API URL in .env or environment
+   export API_BASE_URL=http://localhost:8000
+   uv run chainlit run chainlit_app.py --host 0.0.0.0 --port 8001
+   ```
+
+4. **Access the Services**
+   - **API Documentation**: http://localhost:8000/docs
+   - **Chainlit Web UI**: http://localhost:8001
+   - **API Health Check**: http://localhost:8000/api/health
+
+### Option 3: Development Mode
+
+#### API Service Only (Development)
+
+1. **Setup Environment**
+   ```bash
+   cp .env.example .env
+   # Edit .env and add your GEMINI_API_KEY
+   # Uses the same .env file as Docker deployment
    ```
 
 2. **Install Dependencies**
@@ -83,14 +160,14 @@ The service supports 17+ cloud component types:
 
 3. **Run the API Service**
    ```bash
-   uv run uvicorn main:app --reload
+   uv run uvicorn main:app --reload --host 0.0.0.0 --port 8000
    ```
 
 4. **Access the API**
    - API Documentation: http://localhost:8000/docs
    - Health Check: http://localhost:8000/api/health
 
-#### Chainlit Web UI
+#### Chainlit Web UI (Development)
 
 1. **Install Dependencies** (if not already done)
    ```bash
@@ -275,18 +352,60 @@ def _build_diagram_generation_prompt(self, user_description: str, supported_node
 
 ### Environment Variables
 
+The project uses a single `.env` file for both Docker and native deployments. This ensures consistency and makes it easy to switch between deployment methods.
+
+#### Required Variables
 ```bash
 # Required
 GEMINI_API_KEY=your_gemini_api_key_here
+```
 
-# Optional
+#### Optional Variables
+```bash
+# Server Configuration
 HOST=0.0.0.0
 PORT=8000
+RELOAD=false
+
+# Agent Configuration
 AGENT_POOL_SIZE=3
+
+# Logging
 LOG_LEVEL=INFO
+
+# Development/Testing
 USE_MOCK_LLM=false  # Set to true for testing without API key
-IMAGES_DIR=/tmp/diagram_service_images  # Directory for storing generated diagrams
+
+# Storage Configuration
+IMAGES_DIR=./diagram_service_images  # Directory for storing generated diagrams
+
+# Chainlit-specific (optional)
+CHAINLIT_HOST=0.0.0.0
+CHAINLIT_PORT=8001
+API_BASE_URL=http://localhost:8000  # URL of the API service
 ```
+
+#### Environment File Setup
+1. Copy the example file: `cp .env.example .env`
+2. Edit `.env` and add your `GEMINI_API_KEY`
+3. The same `.env` file works for both Docker and native deployments
+
+### Docker vs Native Configuration
+
+#### Docker Deployment
+- Environment variables are loaded from `.env` file (same as native)
+- Services communicate via Docker network
+- Volumes are mounted for persistent storage
+- Health checks are automatically configured
+
+#### Native Deployment
+- Environment variables are loaded from `.env` file (same as Docker)
+- Services communicate via localhost
+- Temporary files are stored in local filesystem
+- Manual process management required
+
+#### Shared Configuration
+Both Docker and native deployments use the same `.env` file, making it easy to switch between deployment methods without reconfiguring environment variables.
 
 ### Agent Pool Configuration
 
@@ -410,39 +529,80 @@ print(f"Diagram URL: {result['image_url']}")
 ### Common Issues
 
 1. **"GEMINI_API_KEY not set"**
-   - Solution: Add your Gemini API key to `.env` file
+   - Solution: Add your Gemini API key to `.env` file (same file for Docker and native)
    - Alternative: Set `USE_MOCK_LLM=true` for testing
 
 2. **"graphviz not found"**
    - Solution: Install graphviz system package
-   - Ubuntu/Debian: `apt-get install graphviz`
+   - Ubuntu/Debian: `apt-get install graphviz graphviz-dev pkg-config`
    - macOS: `brew install graphviz`
+   - Windows: `choco install graphviz`
 
 3. **"Port 8000 already in use"**
    - Solution: Change PORT in `.env` or stop conflicting service
+   - Alternative: Use different port: `uv run uvicorn main:app --port 8002`
 
 4. **"Port 8001 already in use" (Chainlit)**
    - Solution: Change Chainlit port or stop conflicting service
+   - Alternative: Use different port: `uv run chainlit run chainlit_app.py --port 8002`
 
 5. **Docker build fails**
    - Solution: Ensure Docker has enough memory (>2GB recommended)
+   - Check Docker logs: `docker-compose logs`
 
 6. **Chainlit not starting**
-   - Solution: Check if all dependencies are installed: `uv sync`
-   - Check logs: `docker-compose logs chainlit`
+   - **Native**: Check if all dependencies are installed: `uv sync`
+   - **Docker**: Check logs: `docker-compose logs chainlit`
+   - **Common fix**: Ensure graphviz is installed (see issue #2)
+
+7. **"Module not found" errors**
+   - **Native**: Run `uv sync` to install dependencies
+   - **Docker**: Rebuild containers: `docker-compose build --no-cache`
+
+8. **Chainlit can't connect to API service**
+   - **Docker**: Ensure both services are running: `docker-compose ps`
+   - **Native**: Check if API service is running on port 8000
+   - **Network**: Verify no firewall blocking localhost connections
 
 ### Logs
 
 Check application logs for detailed error information:
 
 ```bash
-# Local development
+# Native development
 uv run uvicorn main:app --log-level debug
 uv run chainlit run chainlit_app.py --log-level debug
 
 # Docker
 docker-compose logs -f diagram-service
 docker-compose logs -f chainlit
+
+# Docker (individual service)
+docker-compose logs -f chainlit
+docker-compose logs -f diagram-service
+```
+
+### Docker-Specific Commands
+
+```bash
+# Start services in background
+docker-compose up -d
+
+# View running services
+docker-compose ps
+
+# Stop all services
+docker-compose down
+
+# Rebuild and restart
+docker-compose up --build
+
+# View logs for specific service
+docker-compose logs -f chainlit
+
+# Access container shell (for debugging)
+docker-compose exec chainlit bash
+docker-compose exec diagram-service bash
 ```
 
 ## License
