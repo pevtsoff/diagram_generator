@@ -27,13 +27,21 @@ An async Python API service that creates cloud architecture diagrams using AI ag
 cp .env.example .env
 # Edit .env and add your GEMINI_API_KEY
 
-# Run
+# Run (with live code reload and debug logging)
 docker-compose up --build
 
 # Access
 # API: http://localhost:8000/docs
 # Chainlit: http://localhost:8001
 ```
+
+**Development Benefits**:
+- 🔄 **Live Code Reload**: Changes to code are immediately reflected in containers
+- 🐛 **Debug Logging**: Enhanced logging for development debugging
+- 📁 **Full Project Mount**: Entire project directory is live-mounted for instant updates
+- ⚡ **Fast Iteration**: No need to rebuild containers for code changes
+- 🎯 **Simple Setup**: Single volume mount covers all files and folders
+- 🚀 **Unified Configuration**: Single docker-compose.yml for all environments
 
 ### Option 2: Native Installation
 
@@ -50,8 +58,12 @@ cp .env.example .env
 uv sync
 
 # Run (in separate terminals)
-uv run uvicorn main:app --host 0.0.0.0 --port 8000 --reload
-uv run chainlit run chainlit_app.py --host 0.0.0.0 --port 8001
+uv run uvicorn diagram_service.main:app --host 0.0.0.0 --port 8000 --reload
+uv run chainlit run diagram_service/chainlit_app.py --host 0.0.0.0 --port 8001
+
+# Or use the module execution (recommended)
+python -m diagram_service --mode=api --port 8000
+python -m diagram_service --mode=chainlit --port 8001
 ```
 
 ## Usage

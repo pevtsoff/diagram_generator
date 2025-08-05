@@ -16,14 +16,17 @@ services:
       - .env
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      test: [ "CMD", "curl", "-f", "http://localhost:8000/api/health" ]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
     volumes:
-      # Mount for temporary files (optional, for development)
+      # Live code mount for development - mount entire project
+      - .:/app
+      # Mount for temporary files
       - /tmp/diagram-service:/tmp/diagram-service
+    command: uv run uvicorn diagram_service.main:app --host 0.0.0.0 --port 8000 --reload --log-level debug
     networks:
       - diagram-network
 
@@ -39,9 +42,9 @@ services:
     env_file:
       - .env
     volumes:
-      - ./diagrams:/app/diagrams
-      - ./.chainlit:/app/.chainlit
-    command: uv run chainlit run chainlit_app.py --host 0.0.0.0 --port 8001
+      # Live code mount for development - mount entire project
+      - .:/app
+    command: uv run chainlit run diagram_service/chainlit_app.py --host 0.0.0.0 --port 8001 --debug
     depends_on:
       - diagram-service
     networks:
@@ -49,4 +52,4 @@ services:
 
 networks:
   diagram-network:
-    driver: bridge 
+    driver: bridge

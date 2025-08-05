@@ -5,6 +5,7 @@ RUN apt-get update && apt-get install -y \
     graphviz \
     graphviz-dev \
     pkg-config \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
@@ -17,8 +18,6 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 COPY pyproject.toml ./
 COPY uv.lock ./
 COPY README.md ./
-COPY main.py ./
-COPY chainlit_app.py ./
 COPY diagram_service/ ./diagram_service/
 
 # Install dependencies
@@ -36,4 +35,4 @@ HEALTHCHECK --interval=30s --timeout=30s --start-period=30s --retries=3 \
     CMD uv run python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"
 
 # Run the application
-CMD ["uv", "run", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"] 
+CMD ["uv", "run", "uvicorn", "diagram_service.main:app", "--host", "0.0.0.0", "--port", "8000"] 
