@@ -27,13 +27,21 @@ An async Python API service that creates cloud architecture diagrams using AI ag
 cp .env.example .env
 # Edit .env and add your GEMINI_API_KEY
 
-# Run
+# Run (with live code reload and debug logging)
 docker-compose up --build
 
 # Access
 # API: http://localhost:8000/docs
 # Chainlit: http://localhost:8001
 ```
+
+**Development Benefits**:
+- 🔄 **Live Code Reload**: Changes to code are immediately reflected in containers
+- 🐛 **Debug Logging**: Enhanced logging for development debugging
+- 📁 **Full Project Mount**: Entire project directory is live-mounted for instant updates
+- ⚡ **Fast Iteration**: No need to rebuild containers for code changes
+- 🎯 **Simple Setup**: Single volume mount covers all files and folders
+- 🚀 **Unified Configuration**: Single docker-compose.yml for all environments
 
 ### Option 2: Native Installation
 
