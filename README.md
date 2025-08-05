@@ -50,8 +50,12 @@ cp .env.example .env
 uv sync
 
 # Run (in separate terminals)
-uv run uvicorn main:app --host 0.0.0.0 --port 8000 --reload
-uv run chainlit run chainlit_app.py --host 0.0.0.0 --port 8001
+uv run uvicorn diagram_service.main:app --host 0.0.0.0 --port 8000 --reload
+uv run chainlit run diagram_service/chainlit_app.py --host 0.0.0.0 --port 8001
+
+# Or use the module execution (recommended)
+python -m diagram_service --mode=api --port 8000
+python -m diagram_service --mode=chainlit --port 8001
 ```
 
 ## Usage
