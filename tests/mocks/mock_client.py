@@ -1,7 +1,7 @@
 import json
 import logging
 from typing import List
-from diagram_service.llm.gemini_client import DiagramRequest
+from diagram_service.api.models import DiagramRequest
 
 
 class MockLLMClient:

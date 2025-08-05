@@ -3,15 +3,8 @@ import json
 import logging
 from typing import Dict, Any, List, Optional
 import google.generativeai as genai
-from pydantic import BaseModel
 
-
-class DiagramRequest(BaseModel):
-    """Structured request for diagram generation."""
-    name: str
-    nodes: List[Dict[str, Any]]
-    connections: List[Dict[str, Any]]
-    clusters: Optional[List[Dict[str, Any]]] = None
+from diagram_service.api.models import DiagramRequest
 
 
 class GeminiClient:

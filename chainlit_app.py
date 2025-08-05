@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 # Import your existing service components
 from diagram_service.agents.diagram_agent import DiagramAgent
-from diagram_service.llm.gemini_client import DiagramRequest
+from diagram_service.api.models import DiagramRequest
 
 # Global agent instance
 agent: Optional[DiagramAgent] = None
