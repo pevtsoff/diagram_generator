@@ -10,7 +10,6 @@ wheels/
 .venv
 .idea
 .mypy_cache
-.vscode
 .chainlit
 .pytest_cache
 .env

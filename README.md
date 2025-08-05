@@ -1,3 +1,5 @@
+# This is an example of project, generated completely by Cusros.AI with my guidence, within several hours
+
 # AI Diagram Generation Service
 
 An async Python API service that creates cloud architecture diagrams using AI agents. Users describe diagram components in natural language and receive rendered diagram images. Includes both REST API and Chainlit web interface.
@@ -13,6 +15,7 @@ An async Python API service that creates cloud architecture diagrams using AI ag
 ## Quick Start
 
 ### Prerequisites
+
 - Python 3.13+ & UV package manager
 - Docker & Docker Compose (for containerized deployment)
 - Gemini API key (free at [Google AI Studio](https://makersuite.google.com/))
@@ -54,11 +57,13 @@ uv run chainlit run chainlit_app.py --host 0.0.0.0 --port 8001
 ## Usage
 
 ### Web Interface (Chainlit)
-1. Open http://localhost:8001
+
+1. Open <http://localhost:8001>
 2. Describe your diagram in natural language
 3. View the generated diagram
 
 **Example Requests:**
+
 ```
 "Create a web application with load balancer and database"
 "Design a microservices architecture with API gateway"
@@ -68,6 +73,7 @@ uv run chainlit run chainlit_app.py --host 0.0.0.0 --port 8001
 ### API Endpoints
 
 #### `POST /api/generate-diagram`
+
 ```json
 {
   "description": "Create a web app with load balancer, two EC2 instances, and RDS database"
@@ -75,14 +81,17 @@ uv run chainlit run chainlit_app.py --host 0.0.0.0 --port 8001
 ```
 
 #### `POST /api/assistant-chat`
+
 Interactive assistant for complex workflows.
 
 #### `GET /api/health`
+
 Service health check.
 
 ## Configuration
 
 ### Environment Variables
+
 ```bash
 # Required
 GEMINI_API_KEY=your_gemini_api_key_here
@@ -101,12 +110,15 @@ IMAGES_DIR=./diagram_service_images
 ## Supported Components
 
 ### AWS Services
+
 EC2, RDS, ALB/ELB, SQS, S3, CloudWatch, Route53, IAM
 
 ### GCP Services
+
 Compute Engine, GKE, Cloud SQL, Load Balancer
 
 ### Azure Services
+
 Virtual Machines, Azure SQL, Load Balancer
 
 ## Troubleshooting
@@ -130,11 +142,13 @@ Virtual Machines, Azure SQL, Load Balancer
 ## Development
 
 ### Running Tests
+
 ```bash
 uv run pytest tests/
 ```
 
 ### Project Structure
+
 ```
 diagram_generator/
 ├── diagram_service/     # Core service components
@@ -147,6 +161,7 @@ diagram_generator/
 ## API Examples
 
 ### Using curl
+
 ```bash
 # Generate diagram
 curl -X POST "http://localhost:8000/api/generate-diagram" \
@@ -158,6 +173,7 @@ curl "http://localhost:8000/api/health"
 ```
 
 ### Using Python
+
 ```python
 import requests
 
@@ -185,4 +201,4 @@ print(f"Diagram URL: {result['image_url']}")
 
 ## License
 
-This project is created as a home assignment demonstration. 
+This project is created as a home assignment demonstration.
