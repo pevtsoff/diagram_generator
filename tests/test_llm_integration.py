@@ -3,6 +3,7 @@ import os
 
 import pytest
 
+from diagram_service.agents.chat_agent import ChatAgent
 from diagram_service.agents.diagram_agent import DiagramAgent
 from diagram_service.api.models import DiagramRequest
 from tests.mocks.mock_client import MockLLMClient
@@ -10,8 +11,6 @@ from tests.mocks.mock_client import MockLLMClient
 
 def create_test_agent():
     """Create a test agent with mock LLM client."""
-    from diagram_service.agents.chat_agent import ChatAgent
-    from tests.mocks.mock_client import MockLLMClient
 
     class TestDiagramAgent(DiagramAgent):
         def __init__(self):

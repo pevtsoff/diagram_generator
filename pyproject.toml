@@ -15,6 +15,7 @@ dependencies = [
     "diagrams>=0.23.0",
     "pydantic>=2.5.0",
     "chainlit>=1.0.0",
+    "dependency-injector>=4.41.0",
 ]
 
 [project.optional-dependencies]
