@@ -1,0 +1,625 @@
+---
+alwaysApply: true
+description: Domain Driven Design, CQRS, and IoC patterns for clean architecture
+---
+
+# Domain Driven Design (DDD) + CQRS + IoC Patterns
+
+## 🏗️ **Project Structure (DDD Layers)**
+
+```
+src/
+├── domain/                    # Domain Layer (Core Business Logic)
+│   ├── entities/             # Domain Entities
+│   ├── value-objects/        # Value Objects
+│   ├── aggregates/           # Aggregate Roots
+│   ├── repositories/         # Repository Interfaces
+│   ├── services/             # Domain Services
+│   └── events/               # Domain Events
+├── application/               # Application Layer (Use Cases)
+│   ├── commands/             # Command Handlers (CQRS)
+│   ├── queries/              # Query Handlers (CQRS)
+│   ├── services/             # Application Services
+│   └── dtos/                 # Data Transfer Objects
+├── infrastructure/            # Infrastructure Layer
+│   ├── persistence/          # Database Implementations
+│   ├── external/             # External Services
+│   ├── messaging/            # Message Brokers
+│   └── config/               # Configuration
+└── presentation/              # Presentation Layer
+    ├── controllers/          # API Controllers
+    ├── views/                # UI Components
+    └── middlewares/          # Cross-cutting Concerns
+```
+
+## 🎯 **Domain Layer (Core Business Logic)**
+
+### **Entities**
+
+```python
+# domain/entities/user.py
+from pydantic import BaseModel, Field, validator
+from typing import Optional
+from datetime import datetime, timedelta
+from .value_objects import Email, UserId
+
+class User(BaseModel):
+    id: UserId
+    email: Email
+    name: str = Field(..., min_length=1, max_length=100)
+    created_at: datetime
+    updated_at: datetime
+    
+    @validator('name')
+    def validate_name(cls, v):
+        if not v.strip():
+            raise ValueError("Name cannot be empty")
+        return v.strip()
+    
+    def update_name(self, new_name: str) -> None:
+        if not new_name.strip():
+            raise ValueError("Name cannot be empty")
+        self.name = new_name.strip()
+        self.updated_at = datetime.utcnow()
+    
+    def is_active(self) -> bool:
+        return self.updated_at > datetime.utcnow() - timedelta(days=30)
+    
+    class Config:
+        arbitrary_types_allowed = True
+```
+
+### **Value Objects**
+
+```python
+# domain/value_objects/email.py
+from pydantic import BaseModel, validator
+import re
+
+class Email(BaseModel):
+    value: str
+    
+    @validator('value')
+    def validate_email(cls, v):
+        if not cls._is_valid_email(v):
+            raise ValueError(f"Invalid email format: {v}")
+        return v
+    
+    @staticmethod
+    def _is_valid_email(email: str) -> bool:
+        pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        return re.match(pattern, email) is not None
+    
+    def __str__(self) -> str:
+        return self.value
+    
+    class Config:
+        frozen = True
+```
+
+### **Aggregates**
+
+```python
+# domain/aggregates/order.py
+from pydantic import BaseModel, Field, validator
+from typing import List, Optional
+from .entities import OrderItem
+from .value_objects import OrderId, CustomerId
+from .events import OrderCreated, OrderItemAdded
+
+class Order(BaseModel):
+    id: OrderId
+    customer_id: CustomerId
+    items: List[OrderItem] = Field(default_factory=list)
+    status: str = Field(default="pending", regex="^(pending|confirmed|cancelled)$")
+    
+    @validator('status')
+    def validate_status(cls, v):
+        valid_statuses = ["pending", "confirmed", "cancelled"]
+        if v not in valid_statuses:
+            raise ValueError(f"Invalid status: {v}. Must be one of {valid_statuses}")
+        return v
+    
+    def add_item(self, item: OrderItem) -> None:
+        if self.status != "pending":
+            raise ValueError("Cannot add items to non-pending order")
+        self.items.append(item)
+        # Domain event
+        self._events.append(OrderItemAdded(self.id, item))
+    
+    def calculate_total(self) -> float:
+        return sum(item.price * item.quantity for item in self.items)
+    
+    def confirm(self) -> None:
+        if not self.items:
+            raise ValueError("Cannot confirm empty order")
+        self.status = "confirmed"
+    
+    class Config:
+        arbitrary_types_allowed = True
+```
+
+### **Repository Interfaces**
+
+```python
+# domain/repositories/user_repository.py
+from typing import Optional, List, Protocol
+from ..entities import User
+from ..value_objects import UserId, Email
+
+class UserRepository(Protocol):
+    async def save(self, user: User) -> None: ...
+    
+    async def find_by_id(self, user_id: UserId) -> Optional[User]: ...
+    
+    async def find_by_email(self, email: Email) -> Optional[User]: ...
+    
+    async def find_all(self) -> List[User]: ...
+    
+    async def delete(self, user_id: UserId) -> None: ...
+```
+
+## 📝 **Application Layer (CQRS Pattern)**
+
+### **Commands (Write Operations)**
+
+```python
+# application/commands/create_user.py
+from pydantic import BaseModel, Field, validator
+from typing import Optional
+from ..domain.value_objects import Email, UserId
+from ..domain.entities import User
+
+class CreateUserCommand(BaseModel):
+    email: str = Field(..., description="User email address")
+    name: str = Field(..., min_length=1, max_length=100, description="User full name")
+    password: str = Field(..., min_length=8, description="User password")
+    
+    @validator('email')
+    def validate_email(cls, v):
+        # Basic email validation
+        if '@' not in v or '.' not in v:
+            raise ValueError("Invalid email format")
+        return v.lower()
+    
+    @validator('password')
+    def validate_password(cls, v):
+        if len(v) < 8:
+            raise ValueError("Password must be at least 8 characters long")
+        return v
+
+class CreateUserHandler:
+    def __init__(self, user_repository, password_service):
+        self.user_repository = user_repository
+        self.password_service = password_service
+    
+    async def handle(self, command: CreateUserCommand) -> UserId:
+        # Validate command
+        email = Email(command.email)
+        
+        # Check if user exists
+        existing_user = await self.user_repository.find_by_email(email)
+        if existing_user:
+            raise ValueError("User with this email already exists")
+        
+        # Create user
+        user_id = UserId.generate()
+        hashed_password = self.password_service.hash(command.password)
+        
+        user = User(
+            id=user_id,
+            email=email,
+            name=command.name,
+            password_hash=hashed_password,
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow()
+        )
+        
+        await self.user_repository.save(user)
+        return user_id
+```
+
+### **Queries (Read Operations)**
+
+```python
+# application/queries/get_user_by_id.py
+from pydantic import BaseModel, Field, validator
+from typing import Optional
+from ..domain.value_objects import UserId
+from ..application.dtos import UserDto
+
+class GetUserByIdQuery(BaseModel):
+    user_id: str = Field(..., description="User ID to retrieve")
+    
+    @validator('user_id')
+    def validate_user_id(cls, v):
+        if not v.strip():
+            raise ValueError("User ID cannot be empty")
+        return v.strip()
+
+class GetUserByIdHandler:
+    def __init__(self, user_repository):
+        self.user_repository = user_repository
+    
+    async def handle(self, query: GetUserByIdQuery) -> Optional[UserDto]:
+        user_id = UserId(query.user_id)
+        user = await self.user_repository.find_by_id(user_id)
+        
+        if not user:
+            return None
+        
+        return UserDto(
+            id=str(user.id),
+            email=str(user.email),
+            name=user.name,
+            created_at=user.created_at
+        )
+```
+
+### **Application Services**
+
+```python
+# application/services/user_service.py
+from typing import List, Optional
+from pydantic import BaseModel
+from ..domain.repositories import UserRepository
+from ..application.commands import CreateUserCommand, CreateUserHandler
+from ..application.queries import GetUserByIdQuery, GetUserByIdHandler
+from ..application.dtos import UserDto
+
+class UserService(BaseModel):
+    user_repository: UserRepository
+    create_user_handler: CreateUserHandler
+    get_user_handler: GetUserByIdHandler
+    
+    class Config:
+        arbitrary_types_allowed = True
+    
+    @classmethod
+    def create(cls, user_repository: UserRepository, password_service):
+        return cls(
+            user_repository=user_repository,
+            create_user_handler=CreateUserHandler(user_repository, password_service),
+            get_user_handler=GetUserByIdHandler(user_repository)
+        )
+    
+    async def create_user(self, email: str, name: str, password: str) -> str:
+        command = CreateUserCommand(email=email, name=name, password=password)
+        return await self.create_user_handler.handle(command)
+    
+    async def get_user(self, user_id: str) -> Optional[UserDto]:
+        query = GetUserByIdQuery(user_id=user_id)
+        return await self.get_user_handler.handle(query)
+
+## 🔧 **Infrastructure Layer (IoC Implementation)**
+
+### **Dependency Injection Container**
+
+```python
+# infrastructure/config/container.py
+from dependency_injector import containers, providers
+from pydantic import BaseModel
+from ..persistence.user_repository_impl import UserRepositoryImpl
+from ..application.services import UserService
+from ..domain.services import PasswordService
+
+class Container(containers.DeclarativeContainer):
+    # Configuration
+    config = providers.Configuration()
+    
+    # Infrastructure
+    user_repository = providers.Singleton(
+        UserRepositoryImpl,
+        database_url=config.database.url
+    )
+    
+    password_service = providers.Singleton(PasswordService)
+    
+    # Application Services
+    user_service = providers.Factory(
+        UserService.create,
+        user_repository=user_repository,
+        password_service=password_service
+    )
+```
+
+### **Repository Implementation**
+
+```python
+# infrastructure/persistence/user_repository_impl.py
+from typing import Optional, List
+from sqlalchemy.orm import Session
+from ...domain.repositories import UserRepository
+from ...domain.entities import User
+from ...domain.value_objects import UserId, Email
+
+class UserRepositoryImpl(UserRepository):
+    def __init__(self, database_url: str):
+        self.database_url = database_url
+    
+    async def save(self, user: User) -> None:
+        # Database implementation
+        pass
+    
+    async def find_by_id(self, user_id: UserId) -> Optional[User]:
+        # Database implementation
+        pass
+    
+    async def find_by_email(self, email: Email) -> Optional[User]:
+        # Database implementation
+        pass
+```
+
+## 🎮 **Presentation Layer**
+
+### **Controllers (API)**
+
+```python
+# presentation/controllers/user_controller.py
+from fastapi import APIRouter, Depends, HTTPException
+from typing import List
+from pydantic import BaseModel
+from ...application.services import UserService
+from ...application.dtos import UserDto, CreateUserRequest
+
+router = APIRouter()
+
+def get_user_service() -> UserService:
+    # Dependency injection
+    container = Container()
+    return container.user_service()
+
+@router.post("/users", response_model=UserDto)
+async def create_user(
+    request: CreateUserRequest,
+    user_service: UserService = Depends(get_user_service)
+):
+    try:
+        user_id = await user_service.create_user(
+            email=request.email,
+            name=request.name,
+            password=request.password
+        )
+        return {"id": user_id, "message": "User created successfully"}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.get("/users/{user_id}", response_model=UserDto)
+async def get_user(
+    user_id: str,
+    user_service: UserService = Depends(get_user_service)
+):
+    user = await user_service.get_user(user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user
+```
+
+## 🔄 **CQRS Implementation Patterns**
+
+### **Command Bus**
+
+```python
+# application/command_bus.py
+from typing import Type, TypeVar, Dict, Any, Protocol
+from pydantic import BaseModel
+
+T = TypeVar('T', bound=BaseModel)
+
+class CommandHandler(Protocol[T]):
+    async def handle(self, command: T) -> Any: ...
+
+class CommandBus(BaseModel):
+    _handlers: Dict[Type, CommandHandler] = {}
+    
+    class Config:
+        arbitrary_types_allowed = True
+    
+    def register(self, command_type: Type, handler: CommandHandler):
+        self._handlers[command_type] = handler
+    
+    async def dispatch(self, command: T):
+        handler = self._handlers.get(type(command))
+        if not handler:
+            raise ValueError(f"No handler registered for {type(command)}")
+        return await handler.handle(command)
+```
+
+### **Query Bus**
+
+```python
+# application/query_bus.py
+from typing import Type, TypeVar, Dict, Any, Protocol
+from pydantic import BaseModel
+
+T = TypeVar('T', bound=BaseModel)
+
+class QueryHandler(Protocol[T]):
+    async def handle(self, query: T) -> Any: ...
+
+class QueryBus(BaseModel):
+    _handlers: Dict[Type, QueryHandler] = {}
+    
+    class Config:
+        arbitrary_types_allowed = True
+    
+    def register(self, query_type: Type, handler: QueryHandler):
+        self._handlers[query_type] = handler
+    
+    async def dispatch(self, query: T):
+        handler = self._handlers.get(type(query))
+        if not handler:
+            raise ValueError(f"No handler registered for {type(query)}")
+        return await handler.handle(query)
+```
+
+## 📋 **Best Practices**
+
+### **1. Domain Layer Rules**
+
+- ✅ Keep domain entities pure (no infrastructure dependencies)
+- ✅ Use value objects for immutable concepts
+- ✅ Implement business rules in domain entities
+- ✅ Use domain events for side effects
+- ❌ Don't inject repositories into entities
+- ❌ Don't put infrastructure logic in domain layer
+
+### **2. CQRS Rules**
+
+- ✅ Separate read and write models
+- ✅ Use commands for write operations
+- ✅ Use queries for read operations
+- ✅ Keep command handlers focused on single responsibility
+- ✅ Use DTOs for data transfer
+- ❌ Don't mix read and write operations
+- ❌ Don't expose domain entities directly in APIs
+
+### **3. IoC Rules**
+
+- ✅ Use dependency injection for all dependencies
+- ✅ Register services in container
+- ✅ Use interfaces for abstractions
+- ✅ Keep constructors simple
+- ❌ Don't use service locator pattern
+- ❌ Don't create dependencies inside classes
+
+### **4. Testing Strategy**
+
+```python
+# tests/unit/domain/test_user.py
+import pytest
+from pydantic import ValidationError
+from domain.entities import User
+from domain.value_objects import Email, UserId
+
+class TestUser:
+    def test_user_creation(self):
+        user_id = UserId("123")
+        email = Email(value="test@example.com")
+        user = User(
+            id=user_id, 
+            email=email, 
+            name="Test User",
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow()
+        )
+        
+        assert user.id == user_id
+        assert user.email == email
+        assert user.name == "Test User"
+    
+    def test_invalid_email_raises_error(self):
+        with pytest.raises(ValidationError):
+            Email(value="invalid-email")
+    
+    def test_user_validation(self):
+        with pytest.raises(ValidationError):
+            User(
+                id=UserId("123"),
+                email=Email(value="test@example.com"),
+                name="",  # Empty name should fail validation
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow()
+            )
+```
+
+## 🚀 **Quick Start Template**
+
+When creating new features:
+
+1. **Start with Domain Layer**: Define entities, value objects, and aggregates
+2. **Create Repository Interfaces**: Define contracts in domain layer
+3. **Implement Application Layer**: Create commands and queries
+4. **Add Infrastructure**: Implement repositories and external services
+5. **Create Presentation**: Add controllers and DTOs
+6. **Register Dependencies**: Configure IoC container
+7. **Write Tests**: Unit tests for domain, integration tests for application
+
+This pattern ensures clean separation of concerns, testability, and maintainable code architecture.
+
+## 🎯 **Pydantic vs Dataclasses Benefits**
+
+### **Why Use Pydantic in DDD?**
+
+✅ **Automatic Validation**: Built-in field validation with custom validators  
+✅ **Serialization**: Easy JSON serialization/deserialization  
+✅ **FastAPI Integration**: Native support for API documentation  
+✅ **Type Safety**: Better type checking and IDE support  
+✅ **Field Constraints**: Min/max length, regex patterns, custom validators  
+✅ **Nested Models**: Complex object validation  
+✅ **Error Handling**: Detailed validation error messages  
+✅ **Performance**: Fast validation and serialization  
+✅ **Schema Generation**: Automatic OpenAPI schema generation  
+
+### **Migration from Dataclasses**
+
+```python
+# Before (dataclass)
+@dataclass
+class User:
+    id: str
+    email: str
+    name: str
+
+# After (Pydantic)
+class User(BaseModel):
+    id: str = Field(..., description="User ID")
+    email: str = Field(..., regex=r"^[^@]+@[^@]+\.[^@]+$")
+    name: str = Field(..., min_length=1, max_length=100)
+    
+    @validator('email')
+    def validate_email(cls, v):
+        if not v or '@' not in v:
+            raise ValueError("Invalid email format")
+        return v.lower()
+```
+
+## 🔧 **Protocol vs ABC Benefits**
+
+### **Why Use Protocol over ABC?**
+
+✅ **Structural Typing**: Duck typing with type safety  
+✅ **No Inheritance**: No need to inherit from abstract base classes  
+✅ **Runtime Flexibility**: Works with any object that has the required methods  
+✅ **Better Performance**: No runtime overhead of ABC registration  
+✅ **Easier Testing**: No need to create mock subclasses  
+✅ **Modern Python**: Uses Python 3.8+ structural typing  
+✅ **IDE Support**: Better autocomplete and type checking  
+✅ **Composition Over Inheritance**: Encourages composition patterns  
+
+### **Migration from ABC to Protocol**
+
+```python
+# Before (ABC)
+from abc import ABC, abstractmethod
+
+class UserRepository(ABC):
+    @abstractmethod
+    async def save(self, user: User) -> None:
+        pass
+    
+    @abstractmethod
+    async def find_by_id(self, user_id: UserId) -> Optional[User]:
+        pass
+
+# After (Protocol)
+from typing import Protocol
+
+class UserRepository(Protocol):
+    async def save(self, user: User) -> None: ...
+    
+    async def find_by_id(self, user_id: UserId) -> Optional[User]: ...
+
+# Usage - any class with matching methods works!
+class InMemoryUserRepository:
+    async def save(self, user: User) -> None:
+        # Implementation
+        pass
+    
+    async def find_by_id(self, user_id: UserId) -> Optional[User]:
+        # Implementation
+        pass
+
+# Type checker knows this is valid
+repo: UserRepository = InMemoryUserRepository()
+```
