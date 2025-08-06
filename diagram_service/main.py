@@ -1,121 +1,110 @@
-import os
 import logging
+import os
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from dotenv import load_dotenv
+from fastapi.responses import JSONResponse
 
-from diagram_service.api.routes import router, set_agent_pool
-from diagram_service.agents.diagram_agent import DiagramAgentPool
-
-# Load environment variables
-load_dotenv()
+from diagram_service.infrastructure.config.container import Container
+from diagram_service.presentation.controllers.diagram_controller import (
+    router as diagram_router,
+)
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
-
 logger = logging.getLogger(__name__)
 
-# Global variables
-agent_pool = None
+# Global container instance
+container = None
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Application lifespan management."""
-    global agent_pool
-    
+    """Application lifespan manager."""
+    global container
+
     # Startup
     logger.info("Starting Diagram Service...")
-    
-    # Get Gemini API key
-    gemini_api_key = os.getenv("GEMINI_API_KEY")
-    
-    if not gemini_api_key:
-        logger.error("GEMINI_API_KEY environment variable is required")
-        raise ValueError("GEMINI_API_KEY environment variable is required")
-    
-    # Initialize agent pool
-    pool_size = int(os.getenv("AGENT_POOL_SIZE", "3"))
-    agent_pool = DiagramAgentPool(gemini_api_key, pool_size)
-    set_agent_pool(agent_pool)
-    
-    logger.info(f"Initialized agent pool with {pool_size} agents")
+
+    # Initialize container
+    container = Container()
+    container.config.from_dict(
+        {"gemini_api_key": os.getenv("GEMINI_API_KEY", "your-api-key-here")}
+    )
+
+    # Wire container
+    container.wire(
+        modules=["diagram_service.presentation.controllers.diagram_controller"]
+    )
+
     logger.info("Diagram Service started successfully")
-    
+
     yield
-    
+
     # Shutdown
     logger.info("Shutting down Diagram Service...")
-    if agent_pool:
-        # Cleanup would go here if needed
-        pass
+
+    # Cleanup
+    if container:
+        # Cleanup rendering service
+        rendering_service = container.diagram_rendering_service()
+        if hasattr(rendering_service, "cleanup"):
+            rendering_service.cleanup()
+
     logger.info("Diagram Service shut down complete")
 
 
 # Create FastAPI app
 app = FastAPI(
-    title="AI Diagram Generation Service",
-    description="""
-    An async, stateless Python API service that creates diagrams using AI agents powered by LLM.
-    
-    ## Features
-    - Generate cloud architecture diagrams from natural language descriptions
-    - Assistant-style interface for interactive diagram creation
-    - Support for AWS, GCP, and Azure components
-    - Stateless design with no database required
-    
-    ## Endpoints
-    - `/api/generate-diagram`: Main diagram generation endpoint
-    - `/api/assistant-chat`: Interactive assistant for complex workflows
-    - `/api/health`: Service health check
-    - `/api/supported-components`: List of available diagram components
-    """,
+    title="Diagram Generation Service",
+    description="A service for generating diagrams from natural language descriptions",
     version="1.0.0",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Configure appropriately for production
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Include API routes
-app.include_router(router, prefix="/api")
+# Include routers
+app.include_router(diagram_router, prefix="/api/v1", tags=["diagrams"])
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    """Global exception handler."""
+    logger.error(f"Unhandled exception: {exc}")
+    return JSONResponse(status_code=500, content={"detail": "Internal server error"})
 
 
 @app.get("/")
 async def root():
-    """Root endpoint with service information."""
+    """Root endpoint."""
     return {
-        "service": "AI Diagram Generation Service",
+        "message": "Diagram Generation Service",
         "version": "1.0.0",
-        "status": "running",
         "docs": "/docs",
-        "health": "/api/health"
     }
 
 
-if __name__ == "__main__":
-    import uvicorn
-    
-    # Configuration from environment
-    host = os.getenv("HOST", "0.0.0.0")
-    port = int(os.getenv("PORT", "8000"))
-    reload = os.getenv("RELOAD", "false").lower() == "true"
-    
-    # Run the application
-    uvicorn.run(
-        "main:app",
-        host=host,
-        port=port,
-        reload=reload,
-        log_level="info"
-    ) 
+@app.get("/api")
+async def api_info():
+    """API information endpoint."""
+    return {
+        "name": "Diagram Generation Service API",
+        "version": "1.0.0",
+        "endpoints": {
+            "diagrams": "/api/v1/diagrams",
+            "generate": "/api/v1/diagrams/generate",
+            "chat": "/api/v1/chat",
+            "health": "/api/v1/health",
+        },
+    }
